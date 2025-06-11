@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mobile View</title>
+    <style>
+        #character {
+            width: 50px;
+            height: 50px;
+            background: red;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 0.3s;
+        }
+        #cameraView {
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Virtual Character</h1>
+    <div id="character"></div>
+    <video id="cameraView" autoplay playsinline></video>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const character = document.getElementById('character');
+        const video = document.getElementById('cameraView');
+        let stream;
+
+        // Initialize camera
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                captureAndSendFrames();
+            } catch (err) {
+                console.error("Camera error:", err);
+            }
+        }
+
+        // Capture and send frames periodically
+        function captureAndSendFrames() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            setInterval(() => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const frame = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+                    socket.emit('video_frame', { frame });
+                }
+            }, 100); // 10 FPS
+        }
+
+        // Handle movement updates
+        socket.on('character_moved', (pos) => {
+            character.style.left = `${pos.x}px`;
+            character.style.bottom = `${pos.y}px`;
+        });
+
+        socket.on('gravity', (pos) => {
+            setTimeout(() => {
+                character.style.bottom = `${pos.y}px`;
+            }, 300);
+        });
+
+        startCamera();
+    </script>
+</body>
+</html>
