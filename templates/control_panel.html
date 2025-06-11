@@ -80,6 +80,7 @@
         socket.on('camera_frame', (data) => {
     console.log("Received frame from mobile");
     cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
+
 });
 
 

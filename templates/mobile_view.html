@@ -63,7 +63,7 @@ socket.on('connect', () => {
                 // Start capturing frames
                 setInterval(() => {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataURL = canvas.toDataURL('image/jpeg');
+    const dataURL = canvas.toDataURL('image/jpeg').split(',')[1];
     socket.emit('mobile_camera_frame', { frame: dataURL });
     console.log("Sent frame to server");
 }, 500); 
