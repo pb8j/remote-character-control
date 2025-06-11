@@ -3,35 +3,140 @@
 <head>
     <title>Control Panel</title>
     <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
         #controls { display: flex; gap: 10px; margin-bottom: 20px; }
         button { padding: 10px 20px; font-size: 16px; }
-        #phoneCamera { width: 320px; height: 240px; border: 2px solid #ddd; }
+        #cameraToggle { background: #ff4444; color: white; }
+        #cameraToggle.active { background: #00aa00; }
+        #cameraFeed { width: 320px; height: 240px; border: 2px solid #ddd; display: none; }
+        
+        /* Login Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 100px auto; padding: 20px; width: 300px; }
+        .close { float: right; cursor: pointer; }
+        .form-group { margin-bottom: 15px; }
+        .form-group input { width: 100%; padding: 8px; }
+        #loginError { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>Control Panel</h1>
+    <h1>Character Control Panel</h1>
+    
     <div id="controls">
         <button id="leftBtn">Left</button>
         <button id="jumpBtn">Jump</button>
         <button id="rightBtn">Right</button>
+        <button id="cameraToggle">Start Camera</button>
     </div>
-    <h2>Phone Camera Feed</h2>
-    <img id="phoneCamera" alt="Phone Camera Feed">
+    
+    <img id="cameraFeed" alt="Camera Feed">
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Camera Access Login</h2>
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button id="loginBtn">Login</button>
+            <div id="loginError"></div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         const socket = io();
-        const phoneCamera = document.getElementById('phoneCamera');
+        const cameraToggle = document.getElementById('cameraToggle');
+        const cameraFeed = document.getElementById('cameraFeed');
+        const modal = document.getElementById('loginModal');
+        const closeBtn = document.querySelector('.close');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
 
         // Movement controls
-        document.getElementById('leftBtn').addEventListener('click', () => socket.emit('move', 'left'));
-        document.getElementById('rightBtn').addEventListener('click', () => socket.emit('move', 'right'));
-        document.getElementById('jumpBtn').addEventListener('click', () => socket.emit('move', 'jump'));
+        document.getElementById('leftBtn').addEventListener('click', () => moveCharacter('left'));
+        document.getElementById('rightBtn').addEventListener('click', () => moveCharacter('right'));
+        document.getElementById('jumpBtn').addEventListener('click', () => moveCharacter('jump'));
 
-        // Receive video frames from phone
-        socket.on('phone_camera_feed', (data) => {
-            phoneCamera.src = `data:image/jpeg;base64,${data.frame}`;
+        // Camera toggle
+        cameraToggle.addEventListener('click', toggleCamera);
+        
+        // Modal controls
+        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        loginBtn.addEventListener('click', attemptLogin);
+
+        // Socket events
+        socket.on('character_moved', (position) => {
+            console.log('Character moved:', position);
         });
+
+        socket.on('camera_frame', (data) => {
+            cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
+        });
+
+        function moveCharacter(direction) {
+            fetch('/move_character', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ direction })
+            });
+        }
+
+        function toggleCamera() {
+            if (cameraToggle.classList.contains('active')) {
+                // Stop camera (no auth needed)
+                fetch('/toggle_camera', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'stop' })
+                }).then(() => {
+                    cameraToggle.textContent = 'Start Camera';
+                    cameraToggle.classList.remove('active');
+                    cameraFeed.style.display = 'none';
+                });
+            } else {
+                // Show login modal to start camera
+                modal.style.display = 'block';
+            }
+        }
+
+        function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Login successful, start camera
+                    modal.style.display = 'none';
+                    fetch('/toggle_camera', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            action: 'start',
+                            auth: { username, password }
+                        })
+                    }).then(() => {
+                        cameraToggle.textContent = 'Stop Camera';
+                        cameraToggle.classList.add('active');
+                        cameraFeed.style.display = 'block';
+                    });
+                } else {
+                    loginError.textContent = data.error || 'Login failed';
+                }
+            });
+        }
     </script>
 </body>
 </html>

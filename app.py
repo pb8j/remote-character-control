@@ -74,10 +74,10 @@ def handle_mobile_camera_frame(data):
 
 # if __name__ == '__main__':
 #     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
-    
-if __name__ == '__main__':
-import eventlet
-import eventlet.wsgi
-eventlet.monkey_patch()
 
-socketio.run(app, host='0.0.0.0', port=10000)  # Port will be overridden by Render
+if __name__ == '__main__':
+    import eventlet
+    import eventlet.wsgi
+    eventlet.monkey_patch()
+
+    socketio.run(app, host='0.0.0.0', port=10000)  # Port will be overridden by Render
