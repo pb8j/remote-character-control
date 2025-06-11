@@ -29,7 +29,8 @@
         <button id="cameraToggle">Start Camera</button>
     </div>
     
-    <img id="cameraFeed" alt="Camera Feed">
+    <img id="cameraFeed" alt="Camera Feed" style="display: none;">
+
     
     <!-- Login Modal -->
     <div id="loginModal" class="modal">
@@ -77,8 +78,10 @@
         });
 
         socket.on('camera_frame', (data) => {
-            cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
-        });
+    console.log("Received frame from mobile");
+    cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
+});
+
 
         function moveCharacter(direction) {
             fetch('/move_character', {
