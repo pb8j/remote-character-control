@@ -6,34 +6,26 @@ from flask_cors import CORS
 import base64
 import threading
 import time
-import os # Import os for environment variables
+import os
 
 app = Flask(__name__)
-# Generate a strong secret key for production environments
 app.config['SECRET_KEY'] = os.urandom(24)
-# Allow all origins for SocketIO and Flask routes for development/Render deployment
-# IMPORTANT: In production, change "*" to your specific React frontend URL (e.g., "https://your-react-app.onrender.com")
 socketio = SocketIO(app, cors_allowed_origins="*")
-CORS(app) # Enable CORS for Flask HTTP routes
+CORS(app)
 
-# Authentication credentials
 AUTH_USERNAME = "admin"
 AUTH_PASSWORD = "password123"
 
-# Character and camera state
 character_position = {'x': 50, 'y': 50}
-camera_active = False
+camera_active = False # Track camera state on server
 camera_thread = None
 camera = None
 
-# --- Character Movement Configuration ---
 MOVE_STEP_X = 50
 JUMP_HEIGHT = 100
 JUMP_GRAVITY_DELAY_MS = 300
 MAX_X_POSITION = 900
-# --- End Configuration ---
 
-# Helper function to apply gravity after a jump
 def apply_gravity_after_jump(target_y):
     global character_position
     character_position['y'] = target_y
@@ -73,19 +65,23 @@ def move_character():
         print(f"Character jumped to Y: {character_position['y']}")
         eventlet.spawn_after(JUMP_GRAVITY_DELAY_MS / 1000.0, apply_gravity_after_jump, ground_y)
     
-    if direction != 'jump':
+    if direction != 'jump': # Only emit for left/right immediately, jump handles its own emit
         socketio.emit('character_moved', character_position)
         
     return jsonify(character_position)
 
 @app.route('/toggle_camera', methods=['POST'])
 def toggle_camera():
+    global camera_active # Access the global state
     action = request.json.get('action')
     if action == 'start':
-        socketio.emit('start_camera')
+        camera_active = True
+        socketio.emit('start_camera') # Notify mobile to start camera
         print("Camera start requested from mobile.")
         return jsonify({'status': 'camera_expected_from_mobile'})
     elif action == 'stop':
+        camera_active = False # Update server-side state
+        socketio.emit('stop_camera') # <--- ADDED: Notify mobile to stop camera
         print("Camera stop requested.")
         return jsonify({'status': 'camera_stopped'})
     return jsonify({'error': 'Invalid action'}), 400
@@ -93,15 +89,17 @@ def toggle_camera():
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
+    # When a client connects, send them the current character position
     socketio.emit('character_moved', character_position)
+    # Also, if camera is already active, tell the new client to start it
+    if camera_active:
+        socketio.emit('start_camera')
 
 @socketio.on('mobile_camera_frame')
 def handle_mobile_camera_frame(data):
-    socketio.emit('camera_frame', {'frame': data['frame']})
-
+    # Forward the frame to all clients (e.g., laptop viewing control panel)
+    socketio.emit('camera_feed', {'frame': data['frame']})
 
 if __name__ == '__main__':
-    # Get the port from the environment variable provided by Render, default to 5000 for local development
-    port = int(os.environ.get('PORT', 5000)) # <--- UPDATED: Get port from environment
-    # Bind to '0.0.0.0' to be accessible externally (required by Render)
-    socketio.run(app, host='0.0.0.0', port=port, debug=False) # <--- UPDATED: Bind to 0.0.0.0 and use dynamic port
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)
