@@ -2,20 +2,21 @@ import eventlet
 eventlet.monkey_patch()
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
-from flask_cors import CORS
+from flask_cors import CORS # <--- ADDED: Import CORS
 import base64
 import threading
 import time
-import os # Import os for secret key
+import os # <--- ADDED: Import os for secret key
 
 app = Flask(__name__)
 # Generate a strong secret key for production environments
 # For development, you can use a fixed string, but for deployment, use a random one.
-app.config['SECRET_KEY'] = os.urandom(24)
+# If you deploy to Render, you should ideally set SECRET_KEY as an environment variable there.
+app.config['SECRET_KEY'] = os.urandom(24) # <--- UPDATED: Stronger secret key
 # Allow all origins for SocketIO and Flask routes for development/Render deployment
 # IMPORTANT: In production, change "*" to your specific React frontend URL (e.g., "https://your-react-app.onrender.com")
-socketio = SocketIO(app, cors_allowed_origins="*")
-CORS(app) # Enable CORS for Flask routes
+socketio = SocketIO(app, cors_allowed_origins="*") # <--- UPDATED: Added cors_allowed_origins
+CORS(app) # <--- ADDED: Enable CORS for Flask HTTP routes
 
 # Authentication credentials (unchanged)
 AUTH_USERNAME = "admin"
@@ -28,13 +29,13 @@ camera_thread = None
 camera = None
 
 # --- Character Movement Configuration ---
-MOVE_STEP_X = 30 # Character moves 30 pixels left/right per press
-JUMP_HEIGHT = 80 # Character jumps 80 pixels up
+MOVE_STEP_X = 50 # <--- UPDATED: Character moves 50 pixels left/right per press (increased from 10)
+JUMP_HEIGHT = 100 # <--- UPDATED: Character jumps 100 pixels up (increased from 20)
 JUMP_GRAVITY_DELAY_MS = 300 # How long character stays "up" before gravity pulls it down (matches client's setTimeout)
-MAX_X_POSITION = 900 # <--- NEW: Increased maximum X boundary for character movement
+MAX_X_POSITION = 900 # <--- ADDED: Increased maximum X boundary for character movement
 # --- End Configuration ---
 
-# Helper function to apply gravity after a jump (called by eventlet.spawn_after)
+# Helper function to apply gravity after a jump
 def apply_gravity_after_jump(target_y):
     """
     Sets the character's Y position back to its 'ground' level after a jump,
@@ -74,18 +75,18 @@ def move_character():
 
     if direction == 'left':
         # Move left, ensuring it doesn't go below 0 on the X axis
-        character_position['x'] = max(0, character_position['x'] - MOVE_STEP_X)
+        character_position['x'] = max(0, character_position['x'] - MOVE_STEP_X) # <--- UPDATED
         print(f"Moved left to X: {character_position['x']}")
     elif direction == 'right':
         # Move right, ensuring it doesn't exceed the MAX_X_POSITION on the X axis
-        character_position['x'] = min(MAX_X_POSITION, character_position['x'] + MOVE_STEP_X) # <--- UPDATED LINE
+        character_position['x'] = min(MAX_X_POSITION, character_position['x'] + MOVE_STEP_X) # <--- UPDATED
         print(f"Moved right to X: {character_position['x']}")
     elif direction == 'jump':
         # Store the current 'ground' Y position before initiating the jump
         ground_y = character_position['y']
         
         # Move character immediately up to the peak of the jump
-        character_position['y'] += JUMP_HEIGHT
+        character_position['y'] += JUMP_HEIGHT # <--- UPDATED
         
         # Notify all connected clients about the character's new, higher position
         socketio.emit('character_moved', character_position)
@@ -129,12 +130,11 @@ def handle_mobile_camera_frame(data):
     to all other connected clients (e.g., the laptop control panel).
     """
     # Forward the frame (base64 encoded image data) to all clients
-    socketio.emit('camera_feed', {'frame': data['frame']})
+    socketio.emit('camera_frame', {'frame': data['frame']})
     # print("Received and forwarded mobile camera frame.") # Uncomment for verbose debugging
 
 
 if __name__ == '__main__':
     # When deploying to Render, the port is usually managed by Render itself.
-    # For local development, you can specify a port like 5000.
     # debug=True provides auto-reloading and helpful error messages during development.
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True, port=10000) # Use port 10000 as configured for Render
