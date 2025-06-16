@@ -16,7 +16,8 @@
         #cameraFeed {
             position: absolute;
             top: 20px;
-            left: 20px;
+            left: 50%; /* Center horizontally */
+            transform: translateX(-50%); /* Adjust for center alignment */
             width: 160px; /* Smaller camera feed overlay */
             height: 120px;
             border: 2px solid #fff;
@@ -25,9 +26,6 @@
             z-index: 100; /* Ensure it's above the canvas */
             background-color: rgba(0, 0, 0, 0.7); /* Dark background for video area */
             object-fit: cover; /* Cover the area, crop if necessary */
-            transform: translateX(-50%); /* Center horizontally on page */
-            left: 50%;
-            display: block; /* Show it if camera is active */
         }
         #messageBox {
             position: fixed;
@@ -71,7 +69,6 @@
         }
 
         // --- Socket.IO Setup ---
-        // Connect to your Flask SocketIO server (ensure this matches your app.py's host and port)
         const socket = io('https://remote-character-control.onrender.com'); // Use your Render URL here
 
         // --- Three.js Setup ---
@@ -80,100 +77,81 @@
 
         // Initialize Three.js scene, camera, renderer
         function initThreeJS() {
-            // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x333333); // Dark background for the 3D scene
+            scene.background = new THREE.Color(0x333333);
 
-            // Camera (Orthographic for 2D-like movement or Perspective for depth)
-            // Using Orthographic for simpler 2D control mapping:
             const aspect = window.innerWidth / window.innerHeight;
-            const frustumSize = 200; // Controls the "zoom" level
+            const frustumSize = 200;
             camera = new THREE.OrthographicCamera(
                 -frustumSize * aspect / 2,
                  frustumSize * aspect / 2,
                  frustumSize / 2,
                 -frustumSize / 2,
-                1, 1000 // Near and far clipping planes
+                1, 1000
             );
-            camera.position.set(0, 0, 500); // Position camera along Z-axis looking at origin
+            camera.position.set(0, 0, 500);
             camera.lookAt(0, 0, 0);
 
-            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
-            // Set initial size to match screen or desired fixed size
-            renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.9); // 90% of screen size
-            renderer.setPixelRatio(window.devicePixelRatio); // For sharper rendering on high-DPI screens
+            renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.9);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('threejs-container').appendChild(renderer.domElement);
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Soft white light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
             directionalLight.position.set(1, 1, 1).normalize();
             scene.add(directionalLight);
 
-            // Floor/Ground Plane (Optional, helps with perspective)
             const planeGeometry = new THREE.PlaneGeometry(1000, 1000);
             const planeMaterial = new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide });
             const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-            plane.rotation.x = Math.PI / 2; // Rotate to be horizontal
-            plane.position.y = -50; // Place below the character's initial position
+            plane.rotation.x = Math.PI / 2;
+            plane.position.y = -50;
             scene.add(plane);
 
-
-            // Create the 3D Robot Character (using primitives to simulate URDF links)
             createRobotCharacter();
 
-            // Handle window resizing
             window.addEventListener('resize', onWindowResize, false);
-
-            // Start animation loop
             animate();
         }
 
         function createRobotCharacter() {
-            robotGroup = new THREE.Group(); // This group will be the 'character'
+            robotGroup = new THREE.Group();
             scene.add(robotGroup);
 
-            // Body (Base Link)
-            const bodyGeometry = new THREE.BoxGeometry(40, 60, 40); // Width, Height, Depth
-            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff }); // Blue
+            const bodyGeometry = new THREE.BoxGeometry(40, 60, 40);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            robotGroup.add(body); // Add body to the group
+            robotGroup.add(body);
 
-            // Head Link
             const headGeometry = new THREE.SphereGeometry(25, 32, 32);
-            const headMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 }); // Red
+            const headMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.position.y = 50; // Position above the body
-            robotGroup.add(head); // Add head to the group
+            head.position.y = 50;
+            robotGroup.add(head);
 
-            // Right Leg Link
             const legGeometry = new THREE.CylinderGeometry(10, 10, 60, 32);
-            const legMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 }); // Green
+            const legMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
             const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-            rightLeg.position.set(-15, -60, 0); // Position below and to the right
+            rightLeg.position.set(-15, -60, 0);
             robotGroup.add(rightLeg);
 
-            // Left Leg Link
             const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
-            leftLeg.position.set(15, -60, 0); // Position below and to the left
+            leftLeg.position.set(15, -60, 0);
             robotGroup.add(leftLeg);
 
-            // Initial position of the robot group
-            robotGroup.position.set(0, 0, 0); // Start at the center of the scene for now
+            robotGroup.position.set(0, 0, 0);
         }
 
-        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             renderer.render(scene, camera);
         }
 
-        // Handle window resizing
         function onWindowResize() {
             const aspect = window.innerWidth / window.innerHeight;
-            const frustumSize = 200; // Keep consistent with init
+            const frustumSize = 200;
 
             camera.left   = -frustumSize * aspect / 2;
             camera.right  =  frustumSize * aspect / 2;
@@ -186,41 +164,27 @@
 
         // --- Character Movement Sync (Updated for 3D) ---
         socket.on('character_moved', (position) => {
-            // Map the Flask app's (0-900) X range and (Y) positions to Three.js coordinates
-            // Assuming 0,0 is bottom-left for Flask and 0,0,0 is scene center for Three.js
-            // We need to scale and offset. Let's make the scene width roughly 900 units.
-            // A simple mapping: Flask X (0-900) -> Three.js X (-450 to 450)
-            // Flask Y (relative bottom) -> Three.js Y (relative ground)
+            const scaledX = position.x - (900 / 2);
+            const scaledY = position.y - (50); // Adjust Y offset based on robot's base
 
-            const scaledX = position.x - (900 / 2); // Center Flask's 0-900 range around 0 for Three.js
-            const scaledY = position.y - (50); // Offset based on character's initial ground Y
-
-            // Update the robot group's position
             if (robotGroup) {
                 robotGroup.position.x = scaledX;
-                robotGroup.position.y = scaledY; // Y in Three.js is typically vertical
+                robotGroup.position.y = scaledY;
             }
-            console.log(`3D Character moved to X: ${robotGroup.position.x}, Y: ${robotGroup.position.y}`);
+            // console.log(`3D Character moved to X: ${robotGroup.position.x}, Y: ${robotGroup.position.y}`); // Keep verbose logging commented
         });
 
         socket.on('gravity', (position) => {
-            // This is triggered by Flask to indicate character should fall after jump
-            // The mobile_view.html already has a CSS transition for 'bottom', which we removed.
-            // Now, we'll implement a smooth 3D fall.
-            // Using a simple setTimeout for demonstration, for smoother animation, a tweening library
-            // like GSAP or a custom animation loop would be better.
-            const targetY = position.y - 50; // Adjust target Y to match the base of the robot
+            const targetY = position.y - 50;
 
             if (robotGroup) {
-                // Simple animation to fall
                 const startY = robotGroup.position.y;
-                const duration = 300; // milliseconds, matches Flask's JUMP_GRAVITY_DELAY_MS
+                const duration = 300;
                 const startTime = performance.now();
 
                 function animateFall(currentTime) {
                     const elapsed = currentTime - startTime;
                     const progress = Math.min(elapsed / duration, 1);
-                    // Easing function for smoother fall (e.g., easeOutQuad)
                     const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
                     robotGroup.position.y = startY + (targetY - startY) * easedProgress;
@@ -228,23 +192,22 @@
                     if (progress < 1) {
                         requestAnimationFrame(animateFall);
                     } else {
-                        robotGroup.position.y = targetY; // Ensure it lands exactly
+                        robotGroup.position.y = targetY;
                     }
                 }
                 requestAnimationFrame(animateFall);
             }
-            console.log(`3D Character initiating fall to Y: ${targetY}`);
+            // console.log(`3D Character initiating fall to Y: ${targetY}`); // Keep verbose logging commented
         });
 
-        // Request initial character position on connect
         socket.on('connect', () => {
             console.log('Connected to Flask SocketIO');
-            // No direct request_position needed as Flask emits character_moved on connect
         });
 
         // --- Mobile Camera Functionality ---
         const cameraFeed = document.getElementById('cameraFeed');
-        let videoElement = null; // Store the video element for stopping stream
+        let currentStream = null; // Store the MediaStream object
+        let intervalId = null;    // Store the setInterval ID
 
         socket.on('start_camera', () => {
             startCamera();
@@ -252,54 +215,82 @@
             showMessage("Camera started on this device!");
         });
 
+        // <--- NEW: Handle stop_camera signal from control panel --->
+        socket.on('stop_camera', () => { // Assuming your Flask app can send a 'stop_camera' event
+            stopCamera();
+            console.log("Camera stopped request received.");
+            showMessage("Camera stopped on this device.");
+        });
+
+
         socket.on('camera_feed', (data) => {
             if (cameraFeed) {
                 cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
                 if (cameraFeed.style.display === 'none') {
-                    cameraFeed.style.display = 'block'; // Show feed if it was hidden
+                    cameraFeed.style.display = 'block';
                 }
             }
         });
 
         async function startCamera() {
+            // Stop any existing stream/interval before starting a new one
+            stopCamera();
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // If a video element already exists, reuse it or remove it first
-                if (videoElement) {
-                    videoElement.srcObject.getTracks().forEach(track => track.stop());
-                    videoElement.remove();
-                }
+                currentStream = stream; // Store the stream globally
 
-                videoElement = document.createElement('video');
-                videoElement.srcObject = stream;
-                videoElement.play();
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.play();
+                // We don't append video to DOM, just use it to draw to canvas
 
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
 
-                videoElement.addEventListener('loadedmetadata', () => {
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
 
-                    // Start capturing frames
-                    setInterval(() => {
-                        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    // Start capturing frames at a regular interval
+                    intervalId = setInterval(() => { // Store the interval ID globally
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
                         const dataURL = canvas.toDataURL('image/jpeg').split(',')[1];
                         socket.emit('mobile_camera_frame', { frame: dataURL });
-                        // console.log("Sent frame to server"); // Too verbose, keep commented
                     }, 500); // Send frame every 500ms
 
-                    // Show the camera feed element
-                    cameraFeed.style.display = 'block';
+                    cameraFeed.style.display = 'block'; // Show the feed overlay
                 });
             } catch (err) {
                 console.error('Camera access denied or failed:', err);
                 showMessage('Camera access denied or failed. Please check permissions.', 5000);
                 if (cameraFeed) {
-                    cameraFeed.style.display = 'none'; // Hide if camera fails
+                    cameraFeed.style.display = 'none'; // Hide feed if camera fails
                 }
+                stopCamera(); // Ensure cleanup if error occurs
             }
         }
+
+        // <--- NEW: Function to stop camera and clean up resources --->
+        function stopCamera() {
+            // Stop video stream tracks
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null; // Clear the stream reference
+            }
+            // Clear the interval for sending frames
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null; // Clear the interval ID reference
+            }
+            // Hide the camera feed overlay
+            if (cameraFeed) {
+                cameraFeed.src = ''; // Clear image source
+                cameraFeed.style.display = 'none';
+            }
+            console.log("Camera stopped and resources released.");
+        }
+
 
         // Initialize Three.js when the window loads
         window.onload = function() {
