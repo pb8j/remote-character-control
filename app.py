@@ -2,15 +2,22 @@ import eventlet
 eventlet.monkey_patch()
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import base64
 import threading
 import time
+import os # Import os for secret key
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'
-socketio = SocketIO(app)
+# Generate a strong secret key for production environments
+# For development, you can use a fixed string, but for deployment, use a random one.
+app.config['SECRET_KEY'] = os.urandom(24)
+# Allow all origins for SocketIO and Flask routes for development/Render deployment
+# IMPORTANT: In production, change "*" to your specific React frontend URL (e.g., "https://your-react-app.onrender.com")
+socketio = SocketIO(app, cors_allowed_origins="*")
+CORS(app) # Enable CORS for Flask routes
 
-# Authentication credentials
+# Authentication credentials (unchanged)
 AUTH_USERNAME = "admin"
 AUTH_PASSWORD = "password123"
 
@@ -20,61 +27,114 @@ camera_active = False
 camera_thread = None
 camera = None
 
-# Camera streaming function
+# --- Character Movement Configuration ---
+MOVE_STEP_X = 30 # Character moves 30 pixels left/right per press
+JUMP_HEIGHT = 80 # Character jumps 80 pixels up
+JUMP_GRAVITY_DELAY_MS = 300 # How long character stays "up" before gravity pulls it down (matches client's setTimeout)
+MAX_X_POSITION = 900 # <--- NEW: Increased maximum X boundary for character movement
+# --- End Configuration ---
+
+# Helper function to apply gravity after a jump (called by eventlet.spawn_after)
+def apply_gravity_after_jump(target_y):
+    """
+    Sets the character's Y position back to its 'ground' level after a jump,
+    and emits a 'gravity' event to clients to trigger the fall animation.
+    """
+    global character_position
+    character_position['y'] = target_y
+    socketio.emit('gravity', {'y': target_y})
+    print(f"Character fell back to Y: {character_position['y']}")
 
 @app.route('/')
 def index():
-    return render_template('control_panel.html')  # No forced login
+    """Renders the control panel HTML page."""
+    return render_template('control_panel.html')
 
 @app.route('/mobile')
 def mobile():
+    """Renders the mobile view HTML page."""
     return render_template('mobile_view.html')
 
 @app.route('/login', methods=['POST'])
 def login():
+    """Handles user login for camera access."""
     data = request.get_json()
-    if data['username'] == AUTH_USERNAME and data['password'] == AUTH_PASSWORD:
+    if data and data.get('username') == AUTH_USERNAME and data.get('password') == AUTH_PASSWORD:
         return jsonify({'success': True})
     return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
 @app.route('/move_character', methods=['POST'])
 def move_character():
+    """
+    Handles character movement commands (left, right, jump).
+    Updates server-side character_position and emits updates to clients.
+    """
+    global character_position
     direction = request.json.get('direction')
+
     if direction == 'left':
-        character_position['x'] = max(0, character_position['x'] - 10)
+        # Move left, ensuring it doesn't go below 0 on the X axis
+        character_position['x'] = max(0, character_position['x'] - MOVE_STEP_X)
+        print(f"Moved left to X: {character_position['x']}")
     elif direction == 'right':
-        character_position['x'] = min(300, character_position['x'] + 10)
+        # Move right, ensuring it doesn't exceed the MAX_X_POSITION on the X axis
+        character_position['x'] = min(MAX_X_POSITION, character_position['x'] + MOVE_STEP_X) # <--- UPDATED LINE
+        print(f"Moved right to X: {character_position['x']}")
     elif direction == 'jump':
-        character_position['y'] = max(0, character_position['y'] - 20)
-        socketio.emit('gravity', {'y': character_position['y'] + 20})
-    
-    socketio.emit('character_moved', character_position)
+        # Store the current 'ground' Y position before initiating the jump
+        ground_y = character_position['y']
+        
+        # Move character immediately up to the peak of the jump
+        character_position['y'] += JUMP_HEIGHT
+        
+        # Notify all connected clients about the character's new, higher position
+        socketio.emit('character_moved', character_position)
+        print(f"Character jumped to Y: {character_position['y']}")
+        
+        # Schedule the character to "fall" back to its ground position after a delay.
+        # This uses eventlet's non-blocking timer to simulate gravity after the jump.
+        eventlet.spawn_after(JUMP_GRAVITY_DELAY_MS / 1000.0, apply_gravity_after_jump, ground_y)
+        
+    # For non-jump movements (left/right), emit the updated position immediately
+    if direction != 'jump':
+        socketio.emit('character_moved', character_position)
+        
     return jsonify(character_position)
 
 @app.route('/toggle_camera', methods=['POST'])
 def toggle_camera():
+    """Toggles camera streaming on/off based on action."""
     action = request.json.get('action')
     if action == 'start':
-        socketio.emit('start_camera')  # Notify mobile to start
+        socketio.emit('start_camera')  # Notify mobile to start camera
+        print("Camera start requested from mobile.")
         return jsonify({'status': 'camera_expected_from_mobile'})
     elif action == 'stop':
+        # In a real scenario, you'd send a stop signal to the mobile app
+        print("Camera stop requested.")
         return jsonify({'status': 'camera_stopped'})
     return jsonify({'error': 'Invalid action'}), 400
 
-
-
 @socketio.on('connect')
 def handle_connect():
+    """Handles new client connections to SocketIO."""
+    print('Client connected')
+    # Send the current character position to the newly connected client
     socketio.emit('character_moved', character_position)
 
 @socketio.on('mobile_camera_frame')
 def handle_mobile_camera_frame(data):
-    # Forward the frame to all clients (e.g., laptop viewing control panel)
-    socketio.emit('camera_frame', {'frame': data['frame']})
+    """
+    Receives camera frames from the mobile client and forwards them
+    to all other connected clients (e.g., the laptop control panel).
+    """
+    # Forward the frame (base64 encoded image data) to all clients
+    socketio.emit('camera_feed', {'frame': data['frame']})
+    # print("Received and forwarded mobile camera frame.") # Uncomment for verbose debugging
 
-
-# if __name__ == '__main__':
-#     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=10000)  # Port will be overridden by Render
+    # When deploying to Render, the port is usually managed by Render itself.
+    # For local development, you can specify a port like 5000.
+    # debug=True provides auto-reloading and helpful error messages during development.
+    socketio.run(app, debug=True, port=5000)
