@@ -75,6 +75,9 @@
         let scene, camera, renderer;
         let robotGroup;
 
+        // <--- ADDED: Client-side MAX_X_POSITION for consistent mapping --->
+        const MAX_X_POSITION_CLIENT = 900; 
+
         function initThreeJS() {
             console.log("Mobile View: initThreeJS called.");
             try {
@@ -199,8 +202,7 @@
                 console.warn("Mobile View: robotGroup not initialized when character_moved received.");
                 return;
             }
-            // IMPORTANT: MAX_X_POSITION must be consistent with app.py
-            const MAX_X_POSITION_CLIENT = 900; // Client-side constant for mapping
+            // Use the client-side defined MAX_X_POSITION_CLIENT
             const scaledX = position.x - (MAX_X_POSITION_CLIENT / 2);
             const scaledY = position.y - (50); // Adjust Y offset based on robot's base
 
@@ -257,7 +259,7 @@
         const cameraFeed = document.getElementById('cameraFeed');
         let currentStream = null;
         let intervalId = null;
-        let videoElement = null; // Store reference to the video element used for camera capture
+        let videoElement = null;
 
         socket.on('start_camera', () => {
             console.log("Mobile View: Socket event: 'start_camera' received.");
@@ -285,15 +287,14 @@
 
             try {
                 console.log("Mobile View: Requesting camera media...");
-                // Prefer rear camera
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 currentStream = stream;
                 console.log("Mobile View: Camera stream obtained.");
 
-                videoElement = document.createElement('video'); // Create video element
+                videoElement = document.createElement('video');
                 videoElement.srcObject = stream;
-                videoElement.playsInline = true; // Important for iOS to play inline
-                videoElement.muted = true; // Mute video to prevent audio feedback
+                videoElement.playsInline = true;
+                videoElement.muted = true;
 
                 videoElement.addEventListener('loadedmetadata', () => {
                     console.log("Mobile View: Video metadata loaded. Attempting to play video.");
@@ -307,10 +308,9 @@
 
                         intervalId = setInterval(() => {
                             context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                            // Reduce quality to 0.7 for faster transmission
                             const dataURL = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
                             socket.emit('mobile_camera_frame', { frame: dataURL });
-                        }, 200); // Send frame every 200ms
+                        }, 200);
 
                         cameraFeed.style.display = 'block';
                         showMessage('Camera is streaming!', 2000);
@@ -319,7 +319,7 @@
                         showMessage("Video playback error. Check permissions or try reloading.", 7000);
                         stopCamera();
                     });
-                }, { once: true }); // Use { once: true } to prevent multiple event listeners
+                }, { once: true });
             } catch (err) {
                 console.error('Mobile View: Camera access denied or failed:', err);
                 let errorMessage = 'Camera error: ' + err.message;
@@ -352,7 +352,6 @@
             }
             if (videoElement) {
                 videoElement.srcObject = null;
-                // videoElement.remove(); // No need to remove if not appended to DOM
                 videoElement = null;
                 console.log("Mobile View: Video element reference cleared.");
             }
