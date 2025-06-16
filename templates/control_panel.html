@@ -1,64 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Control Panel</title>
+    <title>Character Control Panel</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        #controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { padding: 10px 20px; font-size: 16px; }
-        #cameraToggle { background: #ff4444; color: white; }
-        #cameraToggle.active { background: #00aa00; }
-        #cameraFeed { width: 320px; height: 240px; border: 2px solid #ddd; display: none; }
-        
-        /* Login Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; margin: 100px auto; padding: 20px; width: 300px; }
-        .close { float: right; cursor: pointer; }
-        .form-group { margin-bottom: 15px; }
-        .form-group input { width: 100%; padding: 8px; }
-        #loginError { color: red; margin-top: 10px; }
+        /* Custom styles to define font, as Tailwind doesn't set a default body font */
+        body {
+            font-family: "Inter", sans-serif;
+        }
     </style>
 </head>
-<body>
-    <h1>Character Control Panel</h1>
-    
-    <div id="controls">
-        <button id="leftBtn">Left</button>
-        <button id="jumpBtn">Jump</button>
-        <button id="rightBtn">Right</button>
-        <button id="cameraToggle">Start Camera</button>
-    </div>
-    
-    <img id="cameraFeed" alt="Camera Feed" style="display: none;">
-
-    
-    <!-- Login Modal -->
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Camera Access Login</h2>
-            <div class="form-group">
-                <label>Username:</label>
-                <input type="text" id="username" required>
-            </div>
-            <div class="form-group">
-                <label>Password:</label>
-                <input type="password" id="password" required>
-            </div>
-            <button id="loginBtn">Login</button>
-            <div id="loginError"></div>
+<body class="bg-gradient-to-br from-gray-900 to-black text-white min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+        <h1 class="text-4xl font-extrabold mb-8 text-blue-400">Robot Control Panel</h1>
+        
+        <div id="controls" class="flex flex-col sm:flex-row gap-4 mb-8 justify-center items-center">
+            <button id="leftBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+                Left
+            </button>
+            <button id="jumpBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+                Jump
+            </button>
+            <button id="rightBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+                Right
+            </button>
+            <button id="cameraToggle" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 active:scale-95 w-full sm:w-auto">
+                Start Camera
+            </button>
+        </div>
+        
+        <!-- Camera Feed Display -->
+        <div class="relative w-full aspect-video bg-gray-700 border-2 border-gray-600 rounded-lg overflow-hidden flex items-center justify-center" id="cameraFeedContainer">
+             <img id="cameraFeed" alt="Camera Feed" class="w-full h-full object-contain" style="display: none;">
+             <p id="cameraPlaceholder" class="text-gray-400 text-lg">Camera Feed will appear here</p>
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm text-center relative">
+            <span class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl cursor-pointer transition duration-200" id="closeModalBtn">&times;</span>
+            <h2 class="text-3xl font-bold mb-6 text-blue-300">Camera Access Login</h2>
+            <div class="mb-4">
+                <label for="username" class="block text-left text-gray-300 text-sm font-medium mb-1">Username:</label>
+                <input type="text" id="username" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+            </div>
+            <div class="mb-6">
+                <label for="password" class="block text-left text-gray-300 text-sm font-medium mb-1">Password:</label>
+                <input type="password" id="password" required class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+            </div>
+            <button id="loginBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-105 active:scale-95 w-full">
+                Login
+            </button>
+            <div id="loginError" class="text-red-400 mt-4 text-sm font-medium"></div>
+        </div>
+    </div>
+
+    <!-- Message Box for camera status/errors -->
+    <div id="messageBox" class="fixed bottom-4 bg-gray-800 text-white p-3 rounded-lg shadow-lg z-50 hidden text-sm"></div>
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io();
+        // Ensure this URL matches your deployed Flask SocketIO backend
+        const FLASK_SOCKET_IO_URL = 'https://remote-character-control.onrender.com';
+        const socket = io(FLASK_SOCKET_IO_URL);
+
         const cameraToggle = document.getElementById('cameraToggle');
         const cameraFeed = document.getElementById('cameraFeed');
-        const modal = document.getElementById('loginModal');
-        const closeBtn = document.querySelector('.close');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder'); // New placeholder element
+        const loginModal = document.getElementById('loginModal'); // Renamed from 'modal' for clarity
+        const closeModalBtn = document.getElementById('closeModalBtn'); // Renamed from 'closeBtn'
         const loginBtn = document.getElementById('loginBtn');
         const loginError = document.getElementById('loginError');
+        const messageBox = document.getElementById('messageBox'); // Get the message box element
+
+        // Utility function to show messages (replaces alert)
+        function showMessage(message, duration = 3000) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
+        }
 
         // Movement controls
         document.getElementById('leftBtn').addEventListener('click', () => moveCharacter('left'));
@@ -69,52 +94,85 @@
         cameraToggle.addEventListener('click', toggleCamera);
         
         // Modal controls
-        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        closeModalBtn.addEventListener('click', () => loginModal.classList.add('hidden'));
         loginBtn.addEventListener('click', attemptLogin);
 
         // Socket events
         socket.on('character_moved', (position) => {
             console.log('Character moved:', position);
+            // No direct character display on control panel, only console log
         });
 
-        socket.on('camera_frame', (data) => {
-    console.log("Received frame from mobile");
-    cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
+        socket.on('camera_feed', (data) => {
+            console.log("Received frame from mobile");
+            cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
+            cameraFeed.style.display = 'block'; // Show the image
+            cameraPlaceholder.style.display = 'none'; // Hide the placeholder
+        });
 
-});
+        // Handle initial connection or reconnect
+        socket.on('connect', () => {
+            console.log('Connected to Flask SocketIO backend.');
+        });
 
+        // Handle disconnection
+        socket.on('disconnect', () => {
+            console.log('Disconnected from Flask SocketIO backend.');
+            showMessage('Disconnected from character service. Check your connection.', 5000);
+            cameraToggle.textContent = 'Start Camera';
+            cameraToggle.classList.remove('active');
+            cameraFeed.style.display = 'none';
+            cameraPlaceholder.style.display = 'block'; // Show placeholder on disconnect
+        });
 
         function moveCharacter(direction) {
-            fetch('/move_character', {
+            fetch(`${FLASK_SOCKET_IO_URL}/move_character`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ direction })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Move response:", data);
+            })
+            .catch(error => {
+                console.error("Error moving character:", error);
+                showMessage('Failed to send move command. Is character service running?', 4000);
             });
         }
 
         function toggleCamera() {
             if (cameraToggle.classList.contains('active')) {
                 // Stop camera (no auth needed)
-                fetch('/toggle_camera', {
+                fetch(`${FLASK_SOCKET_IO_URL}/toggle_camera`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'stop' })
-                }).then(() => {
-                    cameraToggle.textContent = 'Start Camera';
-                    cameraToggle.classList.remove('active');
-                    cameraFeed.style.display = 'none';
-                });
+                }).then(res => res.json())
+                  .then(data => {
+                      console.log("Camera stop response:", data);
+                      cameraToggle.textContent = 'Start Camera';
+                      cameraToggle.classList.remove('active');
+                      cameraFeed.style.display = 'none';
+                      cameraPlaceholder.style.display = 'block'; // Show placeholder
+                      showMessage('Camera stopped.', 3000);
+                  })
+                  .catch(error => {
+                      console.error("Error stopping camera:", error);
+                      showMessage('Failed to stop camera.', 4000);
+                  });
             } else {
                 // Show login modal to start camera
-                modal.style.display = 'block';
+                loginModal.classList.remove('hidden'); // Show modal
             }
         }
 
         function attemptLogin() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            loginError.textContent = ''; // Clear previous errors
 
-            fetch('/login', {
+            fetch(`${FLASK_SOCKET_IO_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -123,22 +181,35 @@
             .then(data => {
                 if (data.success) {
                     // Login successful, start camera
-                    modal.style.display = 'none';
-                    fetch('/toggle_camera', {
+                    loginModal.classList.add('hidden'); // Hide modal
+                    fetch(`${FLASK_SOCKET_IO_URL}/toggle_camera`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             action: 'start',
                             auth: { username, password }
                         })
-                    }).then(() => {
-                        cameraToggle.textContent = 'Stop Camera';
-                        cameraToggle.classList.add('active');
-                        cameraFeed.style.display = 'block';
-                    });
+                    }).then(res => res.json())
+                      .then(toggleData => {
+                          console.log("Camera start toggle response:", toggleData);
+                          cameraToggle.textContent = 'Stop Camera';
+                          cameraToggle.classList.add('active');
+                          cameraFeed.style.display = 'block';
+                          cameraPlaceholder.style.display = 'none'; // Hide placeholder
+                          showMessage('Camera started successfully!', 3000);
+                      })
+                      .catch(error => {
+                          console.error("Error initiating camera start:", error);
+                          showMessage('Failed to initiate camera start.', 4000);
+                      });
                 } else {
                     loginError.textContent = data.error || 'Login failed';
                 }
+            })
+            .catch(error => {
+                console.error("Login fetch error:", error);
+                loginError.textContent = 'Network error or service unavailable.';
+                showMessage('Login failed due to network error.', 4000);
             });
         }
     </script>
