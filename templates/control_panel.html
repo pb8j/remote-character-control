@@ -75,14 +75,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         // --- Configuration ---
-        // IMPORTANT: Ensure this URL is exactly your Flask app's deployed Render URL
-        const FLASK_APP_URL = 'https://remote-character-control.onrender.com';
+        const FLASK_APP_URL = 'https://remote-character-control.onrender.com'; // Your deployed Render URL
 
         // --- DOM Elements ---
-        const socket = io(FLASK_APP_URL);
+        // Ensure Socket.IO connects to the Flask app URL for both HTTP fetches and WebSocket
+        const socket = io(FLASK_APP_URL); 
         const cameraToggle = document.getElementById('cameraToggle');
         const cameraFeed = document.getElementById('cameraFeed');
-        const loginModal = document.getElementById('loginModal'); // Renamed from 'modal' for clarity
+        const loginModal = document.getElementById('loginModal');
         const closeBtn = document.querySelector('.close');
         const loginBtn = document.getElementById('loginBtn');
         const loginError = document.getElementById('loginError');
@@ -107,7 +107,7 @@
         // --- Socket Events (for Control Panel) ---
         socket.on('character_moved', (position) => {
             console.log('Control Panel: Character moved to:', position);
-            // The control panel doesn't display the character visually, just logs.
+            // This control panel doesn't visually display the character, just logs.
         });
 
         socket.on('camera_feed', (data) => {
@@ -123,7 +123,7 @@
         });
 
         socket.on('connect', () => {
-            console.log('Control Panel: Connected to Flask SocketIO.');
+            console.log('Control Panel: Connected to Flask SocketIO. Socket ID:', socket.id);
         });
 
         socket.on('disconnect', (reason) => {
@@ -137,7 +137,7 @@
 
         // --- Functions ---
         function moveCharacter(direction) {
-            console.log(`Control Panel: Sending move command: ${direction}`);
+            console.log(`Control Panel: Sending move command: ${direction} to ${FLASK_APP_URL}/move_character`);
             fetch(`${FLASK_APP_URL}/move_character`, { // Use full URL
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -150,7 +150,7 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Control Panel: Move response:', data);
+                console.log('Control Panel: Move response from server:', data);
             })
             .catch(error => {
                 console.error('Control Panel: Error moving character:', error);
@@ -160,7 +160,7 @@
         function toggleCamera() {
             if (cameraToggle.classList.contains('active')) {
                 // Currently active, so send stop command
-                console.log("Control Panel: Sending stop camera command.");
+                console.log("Control Panel: Sending stop camera command to mobile.");
                 fetch(`${FLASK_APP_URL}/toggle_camera`, { // Use full URL
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -187,7 +187,7 @@
         function attemptLogin() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            console.log("Control Panel: Attempting login for camera access...");
+            console.log("Control Panel: Attempting login for camera access with username:", username);
 
             fetch(`${FLASK_APP_URL}/login`, { // Use full URL
                 method: 'POST',
@@ -195,7 +195,7 @@
                 body: JSON.stringify({ username, password })
             })
             .then(res => {
-                if (!res.ok) { // Check for non-2xx responses
+                if (!res.ok) {
                     return res.json().then(errData => { throw new Error(errData.error || 'Login failed'); });
                 }
                 return res.json();
@@ -218,7 +218,7 @@
                         console.log('Control Panel: Start camera response:', toggleData);
                         cameraToggle.textContent = 'Stop Camera';
                         cameraToggle.classList.add('active');
-                        // cameraFeed.style.display will be handled when frames arrive
+                        // cameraFeed.style.display will be handled when frames arrive on 'camera_feed' event
                     })
                     .catch(error => {
                         console.error('Control Panel: Error sending start camera command:', error);
