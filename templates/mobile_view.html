@@ -25,14 +25,14 @@
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #2c3e50, #34495e); /* Canvas background is here */
         }
         
         canvas {
             display: block;
-            background: linear-gradient(45deg, #2c3e50, #34495e);
             width: 100%;
             height: 100%;
-            border-radius: 15px;
+            border-radius: 15px; /* Matches container for rounded corners */
         }
         
         #cameraContainer {
@@ -45,7 +45,7 @@
             border-radius: 8px;
             overflow: hidden;
             background: rgba(0, 0, 0, 0.5);
-            display: none;
+            display: none; /* Controlled by JS */
             z-index: 100;
         }
         
@@ -83,6 +83,7 @@
             align-items: center;
             z-index: 2000;
             color: white;
+            font-size: 1.2em;
         }
         
         .spinner {
@@ -118,6 +119,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Official Three.js STLLoader -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
 
     <script>
         // --- Utility Functions ---
@@ -129,6 +132,8 @@
                 setTimeout(() => {
                     msgBox.style.display = 'none';
                 }, duration);
+            } else {
+                console.warn('MessageBox element not found!');
             }
         }
 
@@ -147,18 +152,25 @@
         // --- Camera Setup ---
         let cameraStream = null;
         let cameraActive = false;
+        let cameraFrameInterval = null; // To store the interval ID
 
         async function startCamera() {
+            console.log("Mobile View: Attempting to start camera.");
+            if (cameraActive) {
+                console.log("Mobile View: Camera already active.");
+                return;
+            }
+
             try {
+                const video = document.getElementById('cameraFeed');
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
+                        width: { ideal: 320 },
+                        height: { ideal: 240 },
                         facingMode: 'environment' // Use back camera if available
                     }
                 });
                 
-                const video = document.getElementById('cameraFeed');
                 video.srcObject = stream;
                 cameraStream = stream;
                 cameraActive = true;
@@ -166,55 +178,61 @@
                 document.getElementById('cameraContainer').style.display = 'block';
                 showMessage('Camera started', 2000);
                 
-                // Start sending frames
-                sendCameraFrames();
+                // Start sending frames after video is ready to play
+                video.addEventListener('loadeddata', () => {
+                    if (!cameraFrameInterval) { // Prevent multiple intervals
+                        cameraFrameInterval = setInterval(captureAndSendFrame, 100); // Send frame every 100ms
+                    }
+                }, { once: true }); // Ensure this listener only runs once
                 
             } catch (error) {
-                console.error('Error accessing camera:', error);
-                showMessage('Camera access denied or not available', 3000);
+                console.error('Mobile View: Error accessing camera:', error);
+                let errorMessage = 'Camera access denied or not available.';
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage = 'Camera permission denied. Please enable in browser settings.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errorMessage = 'No camera found on this device.';
+                }
+                showMessage(errorMessage, 5000);
             }
         }
 
         function stopCamera() {
+            console.log("Mobile View: Stopping camera.");
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
                 cameraActive = false;
                 
                 const video = document.getElementById('cameraFeed');
-                video.srcObject = null;
+                video.srcObject = null; // Disconnect the stream from the video element
                 
                 document.getElementById('cameraContainer').style.display = 'none';
                 showMessage('Camera stopped', 2000);
+
+                if (cameraFrameInterval) {
+                    clearInterval(cameraFrameInterval);
+                    cameraFrameInterval = null;
+                }
             }
         }
 
-        function sendCameraFrames() {
+        function captureAndSendFrame() {
             if (!cameraActive || !cameraStream) return;
             
             const video = document.getElementById('cameraFeed');
+            // Create a temporary canvas for capturing the frame
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
-            canvas.width = 320;
-            canvas.height = 240;
+            canvas.width = video.videoWidth || 320; // Use video actual dimensions or fallback
+            canvas.height = video.videoHeight || 240;
             
-            function captureFrame() {
-                if (!cameraActive) return;
-                
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataURL = canvas.toDataURL('image/jpeg', 0.7);
-                const base64 = dataURL.split(',')[1];
-                
-                socket.emit('mobile_camera_frame', { frame: base64 });
-                
-                setTimeout(captureFrame, 100); // Send frame every 100ms
-            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg', 0.7); // 0.7 quality for speed
+            const base64 = dataURL.split(',')[1];
             
-            // Wait for video to be ready
-            video.addEventListener('loadeddata', () => {
-                captureFrame();
-            });
+            socket.emit('mobile_camera_frame', { frame: base64 });
         }
 
         // --- Socket Events for Camera ---
@@ -229,90 +247,72 @@
         });
 
         // --- Three.js Setup ---
-        let scene, camera, renderer, controls;
-        let robotBaseGroup;
-        let jointObjects = {};
-        let linkObjects = {};
+        let scene, camera, renderer;
+        let robotBaseGroup; // This group will hold the entire robot for overall X/Y movement
+        let jointObjects = {}; // To store references to THREE.Group objects representing joints
+        let linkObjects = {}; // To store references to THREE.Mesh objects representing links
 
-        const MAX_X_POSITION_CLIENT = 900;
-        const URDF_SCALE = 50; // Reduced scale for smaller robot
+        const MAX_X_POSITION_CLIENT = 900; // Consistent with app.py
+        const URDF_SCALE = 1000; // URDF typically uses meters. If your models are in mm, use 1. If in meters, use 1000 for mm.
+                                 // A 10cm x 10cm x 15cm base_link would be 100x100x150 in mm.
+                                 // Adjust this scale to fit your scene and model export units.
+                                 // Let's try a smaller scale for initial visibility, e.g., 500 for a robot of ~0.5m
+                                 // Or even 100 for a robot ~10cm tall in THREE.js units.
+                                 // Based on your URDF, a scale of 1000 means 0.081m becomes 81 units (mm).
+                                 // This makes the robot quite large. Let's try 500.
+                                 // I'll revert to 1000 if it's too small, as the URDF dimensions are in meters.
 
-        // STL Loader
-        class STLLoader {
-            load(url, onLoad, onProgress, onError) {
-                const loader = new THREE.FileLoader();
-                loader.setResponseType('arraybuffer');
-                loader.load(url, (buffer) => {
-                    const geometry = this.parse(buffer);
-                    onLoad(geometry);
-                }, onProgress, onError);
-            }
-
-            parse(buffer) {
-                const dataView = new DataView(buffer);
-                const isASCII = this.isASCII(buffer);
-                
-                return isASCII ? this.parseASCII(buffer) : this.parseBinary(dataView);
-            }
-
-            isASCII(buffer) {
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(buffer.slice(0, 80));
-                return text.toLowerCase().includes('solid');
-            }
-
-            parseASCII(buffer) {
-                // Simplified ASCII STL parser
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(buffer);
-                const geometry = new THREE.BufferGeometry();
-                
-                // For demo, return a simple box geometry
-                // In production, implement full ASCII STL parsing
-                return new THREE.BoxGeometry(20, 20, 20);
-            }
-
-            parseBinary(dataView) {
-                const triangles = dataView.getUint32(80, true);
-                const vertices = [];
-                const normals = [];
-                
-                for (let i = 0; i < triangles; i++) {
-                    const offset = 84 + i * 50;
-                    
-                    // Normal
-                    const nx = dataView.getFloat32(offset, true);
-                    const ny = dataView.getFloat32(offset + 4, true);
-                    const nz = dataView.getFloat32(offset + 8, true);
-                    
-                    // Vertices
-                    for (let j = 0; j < 3; j++) {
-                        const vertexOffset = offset + 12 + j * 12;
-                        vertices.push(
-                            dataView.getFloat32(vertexOffset, true),
-                            dataView.getFloat32(vertexOffset + 4, true),
-                            dataView.getFloat32(vertexOffset + 8, true)
-                        );
-                        normals.push(nx, ny, nz);
-                    }
-                }
-                
-                const geometry = new THREE.BufferGeometry();
-                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-                geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-                
-                return geometry;
-            }
+        // Helper to convert URDF rpy (roll, pitch, yaw) to Three.js Euler angles
+        function rpyToEuler(r, p, y) {
+            // URDF rpy is roll, pitch, yaw. Three.js Euler constructor is (x, y, z) corresponding to roll, pitch, yaw
+            // The default order 'XYZ' is common for URDF.
+            return new THREE.Euler(r, p, y, 'XYZ');
         }
 
-        function initThreeJS() {
+        // --- Model Loading Helper ---
+        // Using the official STLLoader from the CDN
+        const stlLoader = new THREE.STLLoader();
+
+        function loadSTL(path, material = new THREE.MeshPhongMaterial({ color: 0x606060 })) {
+            return new Promise((resolve, reject) => {
+                console.log(`Mobile View: Loading STL: ${path}`);
+                stlLoader.load(
+                    path,
+                    function (geometry) {
+                        const mesh = new THREE.Mesh(geometry, material);
+                        // Enable shadows for each loaded mesh
+                        mesh.castShadow = true;
+                        mesh.receiveShadow = true;
+                        resolve(mesh);
+                    },
+                    function (xhr) {
+                        // console.log(`${path}: ${(xhr.loaded / xhr.total * 100).toFixed(2)}% loaded`);
+                    },
+                    function (error) {
+                        console.error('Mobile View: An error occurred loading STL:', path, error);
+                        reject(error);
+                    }
+                );
+            });
+        }
+
+        async function initThreeJS() {
+            console.log("Mobile View: initThreeJS called.");
             try {
                 scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x2c3e50);
+                scene.background = new THREE.Color(0x2c3e50); // Dark blue-gray background from CSS
+                console.log("Mobile View: Scene created.");
 
-                // Camera setup - adjusted for smaller robot
-                const aspect = window.innerWidth / window.innerHeight;
-                const frustumSize = 200; // Reduced for smaller view
+                const container = document.getElementById('threejs-container');
+                if (!container) {
+                    console.error('Mobile View: THREE.JS CRITICAL: Container #threejs-container NOT found!');
+                    showMessage('3D scene failed: Missing container element.', 7000);
+                    return;
+                }
+
+                // Camera setup - Adjusted for a potentially smaller robot
+                const aspect = container.clientWidth / container.clientHeight;
+                const frustumSize = 100; // Adjusted for a typical robot arm size in scene units
                 camera = new THREE.OrthographicCamera(
                     -frustumSize * aspect / 2,
                      frustumSize * aspect / 2,
@@ -320,211 +320,289 @@
                     -frustumSize / 2,
                     1, 1000
                 );
-                camera.position.set(100, 100, 200);
-                camera.lookAt(0, 25, 0);
+                camera.position.set(50, 50, 150); // Position camera to see robot from front-top
+                camera.lookAt(0, 25, 0); // Look at a point above the ground where the base would be
+                console.log("Mobile View: Camera created.");
 
                 renderer = new THREE.WebGLRenderer({ antialias: true });
-                const container = document.getElementById('threejs-container');
                 renderer.setSize(container.clientWidth, container.clientHeight);
                 renderer.setPixelRatio(window.devicePixelRatio);
-                renderer.shadowMap.enabled = true;
-                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                renderer.shadowMap.enabled = true; // Enable shadows
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
                 
                 container.appendChild(renderer.domElement);
+                console.log("Mobile View: Renderer appended to container.");
 
                 // Enhanced lighting
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 scene.add(ambientLight);
                 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(50, 100, 50);
-                directionalLight.castShadow = true;
+                directionalLight.position.set(50, 100, 50); // Position light
+                directionalLight.castShadow = true; // Light casts shadows
                 directionalLight.shadow.mapSize.width = 2048;
                 directionalLight.shadow.mapSize.height = 2048;
                 scene.add(directionalLight);
+                console.log("Mobile View: Lights added.");
 
                 // Ground plane
                 const planeGeometry = new THREE.PlaneGeometry(500, 500);
                 const planeMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x34495e,
+                    color: 0x34495e, // Darker blue-gray
                     transparent: true,
                     opacity: 0.8
                 });
                 const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-                plane.rotation.x = -Math.PI / 2;
-                plane.position.y = -0.1;
-                plane.receiveShadow = true;
+                plane.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+                plane.position.y = -0.1; // Slightly below y=0 to avoid z-fighting
+                plane.receiveShadow = true; // Plane receives shadows
                 scene.add(plane);
+                console.log("Mobile View: Ground plane added.");
 
-                createRobotFromURDF();
-                
+                showMessage("Loading robot model, please wait...");
+                await createReactorRobot(); // AWAIT THE ASYNC FUNCTION
+                console.log("Mobile View: Reactor robot created.");
+
                 window.addEventListener('resize', onWindowResize, false);
-                
+                console.log("Mobile View: Resize listener added.");
+
                 animate();
-                hideLoadingOverlay();
+                console.log("Mobile View: Animation loop started.");
+                hideLoadingOverlay(); // Hide loading overlay when everything is ready
                 showMessage("3D robot arm loaded successfully!", 3000);
                 
             } catch (error) {
-                console.error("Error initializing Three.js:", error);
-                showMessage("Failed to load 3D robot arm: " + error.message, 5000);
+                console.error("Mobile View: CRITICAL ERROR initializing Three.js:", error);
+                hideLoadingOverlay();
+                showMessage("Failed to load 3D scene or robot: " + error.message, 10000);
             }
         }
 
-        function createRobotFromURDF() {
-            robotBaseGroup = new THREE.Group();
+
+        // --- Function to create the Reactor Robot by loading STL meshes ---
+        async function createReactorRobot() {
+            console.log("Mobile View: createReactorRobot called.");
+
+            robotBaseGroup = new THREE.Group(); // This group represents the overall robot's base position
+            // Add robotBaseGroup to the scene at the end of this function after all parts are loaded
             
-            // Materials
-            const baseMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0x34495e,
-                shininess: 100
-            });
-            const jointMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0xe74c3c,
-                shininess: 100
-            });
-            const linkMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0x3498db,
-                shininess: 100
-            });
+            // Define materials based on your URDF colors if possible, otherwise reasonable defaults
+            const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x404040, shininess: 50 }); // Dark gray
+            const armMaterial = new THREE.MeshPhongMaterial({ color: 0x666666, shininess: 50 }); // Medium gray
+            const jointMaterial = new THREE.MeshPhongMaterial({ color: 0xe74c3c, shininess: 80 }); // Red/Orange for joints
+            const gripperMaterial = new THREE.MeshPhongMaterial({ color: 0x888888, shininess: 50 }); // Light gray
 
-            // Base link - scaled down
-            const baseLinkGeo = new THREE.CylinderGeometry(15, 15, 20, 16);
-            const baseLink = new THREE.Mesh(baseLinkGeo, baseMaterial);
-            baseLink.position.set(0, 10, 0);
-            baseLink.castShadow = true;
-            baseLink.receiveShadow = true;
-            linkObjects['base_link'] = baseLink;
-            robotBaseGroup.add(baseLink);
+            // --- Load Links and Build Hierarchy ---
+            // The URDF "package://" path needs to be mapped to a real HTTP path.
+            const STL_BASE_PATH = 'https://remote-character-control.onrender.com/static/meshes/'; 
+            console.log(`Mobile View: Using STL_BASE_PATH: ${STL_BASE_PATH}`);
 
-            // Shoulder yaw joint
-            const shoulderYawJointGroup = new THREE.Group();
-            shoulderYawJointGroup.position.set(0, 20, 0);
-            jointObjects['shoulder_yaw'] = shoulderYawJointGroup;
-            baseLink.add(shoulderYawJointGroup);
+            try {
+                // Link: base_link
+                const baseLinkMesh = await loadSTL(STL_BASE_PATH + 'base_link.STL', baseMaterial);
+                baseLinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE); // Apply global scale
+                // The base_link visual origin is "0 0 0" in URDF, but its COM is at 0.04262 (42.62mm).
+                // If the STL model is centered on its own geometry, it needs to be offset to align with the URDF origin for the parent joint.
+                // Assuming base_link.STL's local origin is at its center bottom (0,0,0) and it's built upwards.
+                // If your STL is exported centered at its geometric center, you might need an offset like (0, (model_height/2) * URDF_SCALE, 0)
+                baseLinkMesh.position.set(0, 0, 0); // Position relative to robotBaseGroup (which is at Y=0)
+                linkObjects['base_link'] = baseLinkMesh;
+                robotBaseGroup.add(baseLinkMesh);
 
-            // Shoulder link
-            const shoulderLinkGeo = new THREE.CylinderGeometry(8, 8, 15, 16);
-            const shoulderLink = new THREE.Mesh(shoulderLinkGeo, jointMaterial);
-            shoulderLink.castShadow = true;
-            linkObjects['shoulder_link'] = shoulderLink;
-            shoulderYawJointGroup.add(shoulderLink);
 
-            // Shoulder pitch joint
-            const shoulderPitchJointGroup = new THREE.Group();
-            shoulderPitchJointGroup.position.set(0, 0, 8);
-            jointObjects['shoulder_pitch'] = shoulderPitchJointGroup;
-            shoulderLink.add(shoulderPitchJointGroup);
+                // Joint: shoulder_yaw (revolute, axis z)
+                // origin xyz="0 0 0.081" relative to base_link (0.081m = 81mm)
+                // Its parent is base_link. Joint Group is placed at origin of joint relative to parent link.
+                const shoulderYawJointGroup = new THREE.Group();
+                shoulderYawJointGroup.position.set(0, 0, 0.081 * URDF_SCALE); // 81mm along Z from base_link (assuming base_link's local Z is its vertical axis for simplicity)
+                // URDF: axis xyz="0 0 1" (Z-axis rotation for yaw)
+                jointObjects['shoulder_yaw'] = shoulderYawJointGroup;
+                baseLinkMesh.add(shoulderYawJointGroup); // Attach to base_link mesh
 
-            // Bicep link
-            const bicepLinkGeo = new THREE.BoxGeometry(8, 8, 40);
-            const bicepLink = new THREE.Mesh(bicepLinkGeo, linkMaterial);
-            bicepLink.position.set(0, 0, 20);
-            bicepLink.castShadow = true;
-            linkObjects['bicep_link'] = bicepLink;
-            shoulderPitchJointGroup.add(bicepLink);
 
-            // Elbow pitch joint
-            const elbowPitchJointGroup = new THREE.Group();
-            elbowPitchJointGroup.position.set(0, 0, 35);
-            jointObjects['elbow_pitch'] = elbowPitchJointGroup;
-            bicepLink.add(elbowPitchJointGroup);
+                // Link: shoulder_link
+                // Attached to shoulder_yaw joint. Its origin in URDF is 0 0 0 relative to joint.
+                const shoulderLinkMesh = await loadSTL(STL_BASE_PATH + 'shoulder_link.STL', jointMaterial);
+                shoulderLinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                shoulderLinkMesh.position.set(0, 0, 0); // Relative to its parent joint group's origin
+                linkObjects['shoulder_link'] = shoulderLinkMesh;
+                shoulderYawJointGroup.add(shoulderLinkMesh);
 
-            // Forearm link
-            const forearmLinkGeo = new THREE.BoxGeometry(6, 6, 30);
-            const forearmLink = new THREE.Mesh(forearmLinkGeo, linkMaterial);
-            forearmLink.position.set(0, 0, 15);
-            forearmLink.castShadow = true;
-            linkObjects['forearm_link'] = forearmLink;
-            elbowPitchJointGroup.add(forearmLink);
 
-            // Wrist pitch joint
-            const wristPitchJointGroup = new THREE.Group();
-            wristPitchJointGroup.position.set(0, 0, 25);
-            jointObjects['wrist_pitch'] = wristPitchJointGroup;
-            forearmLink.add(wristPitchJointGroup);
+                // Joint: shoulder_pitch (revolute, axis y)
+                // origin xyz="0 0 0.0265" relative to shoulder_link (26.5mm)
+                const shoulderPitchJointGroup = new THREE.Group();
+                shoulderPitchJointGroup.position.set(0, 0.0265 * URDF_SCALE, 0); // From shoulder_link, 26.5mm along Y
+                // URDF: axis xyz="0 1 0" (Y-axis rotation for pitch)
+                jointObjects['shoulder_pitch'] = shoulderPitchJointGroup;
+                shoulderLinkMesh.add(shoulderPitchJointGroup);
 
-            // Wrist 1
-            const wrist1LinkGeo = new THREE.BoxGeometry(6, 6, 8);
-            const wrist1Link = new THREE.Mesh(wrist1LinkGeo, jointMaterial);
-            wrist1Link.castShadow = true;
-            linkObjects['wrist_1'] = wrist1Link;
-            wristPitchJointGroup.add(wrist1Link);
 
-            // Wrist roll joint
-            const wristRollJointGroup = new THREE.Group();
-            wristRollJointGroup.position.set(0, 0, 6);
-            jointObjects['wrist_roll'] = wristRollJointGroup;
-            wrist1Link.add(wristRollJointGroup);
+                // Link: bicep_link
+                const bicepLinkMesh = await loadSTL(STL_BASE_PATH + 'bicep_link.STL', armMaterial);
+                bicepLinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                // URDF visual origin xyz="0 0 0", but inertial origin is offset.
+                // The joint origin is where this link attaches. We want the mesh to be positioned
+                // relative to the joint's frame correctly.
+                // Assuming the mesh's visual is primarily along the X-axis for URDF, and then pitched.
+                // Given the URDF origin is -0.079, 0.00175, 0.0073486. Let's try to negate this for the mesh.
+                bicepLinkMesh.position.set(
+                    -0.079312 * URDF_SCALE,
+                    0.00175 * URDF_SCALE,
+                    0.0073486 * URDF_SCALE
+                );
+                linkObjects['bicep_link'] = bicepLinkMesh;
+                shoulderPitchJointGroup.add(bicepLinkMesh);
 
-            // Wrist 2 (gripper base)
-            const wrist2LinkGeo = new THREE.BoxGeometry(8, 8, 6);
-            const wrist2Link = new THREE.Mesh(wrist2LinkGeo, baseMaterial);
-            wrist2Link.castShadow = true;
-            linkObjects['wrist_2'] = wrist2Link;
-            wristRollJointGroup.add(wrist2Link);
 
-            // Finger joints
-            const finger1JointGroup = new THREE.Group();
-            finger1JointGroup.position.set(4, 0, 4);
-            jointObjects['finger_joint'] = finger1JointGroup;
-            wrist2Link.add(finger1JointGroup);
+                // Joint: elbow_pitch (revolute, axis y)
+                // origin xyz="-0.1445 0 0.0385" relative to bicep_link
+                const elbowPitchJointGroup = new THREE.Group();
+                elbowPitchJointGroup.position.set(-0.1445 * URDF_SCALE, 0, 0.0385 * URDF_SCALE);
+                // URDF: axis xyz="0 1 0" (Y-axis rotation for pitch)
+                jointObjects['elbow_pitch'] = elbowPitchJointGroup;
+                bicepLinkMesh.add(elbowPitchJointGroup);
 
-            const finger2JointGroup = new THREE.Group();
-            finger2JointGroup.position.set(-4, 0, 4);
-            jointObjects['finger_joint_2'] = finger2JointGroup;
-            wrist2Link.add(finger2JointGroup);
 
-            // Finger links
-            const fingerLinkGeo = new THREE.BoxGeometry(2, 2, 8);
-            const finger1Link = new THREE.Mesh(fingerLinkGeo, jointMaterial);
-            finger1Link.position.set(0, 0, 4);
-            finger1Link.castShadow = true;
-            linkObjects['finger_link_1'] = finger1Link;
-            finger1JointGroup.add(finger1Link);
+                // Link: forearm_link
+                const forearmLinkMesh = await loadSTL(STL_BASE_PATH + 'forearm_link.STL', armMaterial);
+                forearmLinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                // origin xyz="0 0 0" relative to elbow_pitch joint
+                forearmLinkMesh.position.set(0, 0, 0);
+                linkObjects['forearm_link'] = forearmLinkMesh;
+                elbowPitchJointGroup.add(forearmLinkMesh);
 
-            const finger2Link = new THREE.Mesh(fingerLinkGeo, jointMaterial);
-            finger2Link.position.set(0, 0, 4);
-            finger2Link.castShadow = true;
-            linkObjects['finger_link_2'] = finger2Link;
-            finger2JointGroup.add(finger2Link);
 
-            scene.add(robotBaseGroup);
-            console.log("Robot created from URDF structure");
+                // Joint: wrist_pitch (revolute, axis y)
+                // origin xyz="0.1535 0 0" relative to forearm_link
+                const wristPitchJointGroup = new THREE.Group();
+                wristPitchJointGroup.position.set(0.1535 * URDF_SCALE, 0, 0);
+                // URDF: axis xyz="0 1 0" (Y-axis rotation for pitch)
+                jointObjects['wrist_pitch'] = wristPitchJointGroup;
+                forearmLinkMesh.add(wristPitchJointGroup);
+
+
+                // Link: wrist_1
+                const wrist1LinkMesh = await loadSTL(STL_BASE_PATH + 'wrist_1.STL', jointMaterial);
+                wrist1LinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                // origin xyz="0 0 0" relative to wrist_pitch joint
+                wrist1LinkMesh.position.set(0, 0, 0);
+                linkObjects['wrist_1'] = wrist1LinkMesh;
+                wristPitchJointGroup.add(wrist1LinkMesh);
+
+
+                // Joint: wrist_roll (revolute, axis x)
+                // origin xyz="0.071 0.00175 0" relative to wrist_1
+                const wristRollJointGroup = new THREE.Group();
+                wristRollJointGroup.position.set(0.071 * URDF_SCALE, 0.00175 * URDF_SCALE, 0);
+                // URDF: axis xyz="1 0 0" (X-axis rotation for roll)
+                jointObjects['wrist_roll'] = wristRollJointGroup;
+                wrist1LinkMesh.add(wristRollJointGroup);
+
+
+                // Link: wrist_2 (gripper base)
+                const wrist2LinkMesh = await loadSTL(STL_BASE_PATH + 'wrist_2.STL', gripperMaterial);
+                wrist2LinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                // origin xyz="0 0 0" relative to wrist_roll joint
+                wrist2LinkMesh.position.set(0, 0, 0);
+                linkObjects['wrist_2'] = wrist2LinkMesh;
+                wristRollJointGroup.add(wrist2LinkMesh);
+
+
+                // Joint: finger_joint (Prismatic, axis z)
+                // origin xyz="0.088882 -0.0187500 0.0012072" relative to wrist_2
+                // rpy="1.5708 -1.5572 -3.1416"
+                const finger1JointGroup = new THREE.Group();
+                finger1JointGroup.position.set(0.088882 * URDF_SCALE, -0.0187500 * URDF_SCALE, 0.0012072 * URDF_SCALE);
+                finger1JointGroup.rotation.copy(rpyToEuler(1.5708, -1.5572, -3.1416)); // Apply fixed RPY rotation for the joint's frame
+                jointObjects['finger_joint'] = finger1JointGroup;
+                wrist2LinkMesh.add(finger1JointGroup);
+
+                // Link: finger_link_1 (moves with finger_joint)
+                const finger1LinkMesh = await loadSTL(STL_BASE_PATH + 'finger_link.STL', gripperMaterial); // Reusing finger_link for both
+                finger1LinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                finger1LinkMesh.position.set(0,0,0); // This position will be translated by applyJointAngle along its local axis
+                linkObjects['finger_link_1'] = finger1LinkMesh;
+                finger1JointGroup.add(finger1LinkMesh);
+
+
+                // Joint: finger_joint_2 (Prismatic, mimics finger_joint)
+                // origin xyz="0.088882 0.0187500 0.0012072" relative to wrist_2
+                // rpy="1.5708 1.5572 -1.4508E-15"
+                const finger2JointGroup = new THREE.Group();
+                finger2JointGroup.position.set(0.088882 * URDF_SCALE, 0.0187500 * URDF_SCALE, 0.0012072 * URDF_SCALE);
+                finger2JointGroup.rotation.copy(rpyToEuler(1.5708, 1.5572, -1.4508e-15)); // Apply fixed RPY rotation for the joint's frame
+                jointObjects['finger_joint_2'] = finger2JointGroup;
+                wrist2LinkMesh.add(finger2JointGroup);
+
+                // Link: finger_link_2
+                const finger2LinkMesh = await loadSTL(STL_BASE_PATH + 'finger_link.STL', gripperMaterial);
+                finger2LinkMesh.scale.set(URDF_SCALE, URDF_SCALE, URDF_SCALE);
+                finger2LinkMesh.position.set(0,0,0); // This position will be translated by applyJointAngle along its local axis
+                linkObjects['finger_link_2'] = finger2LinkMesh;
+                finger2JointGroup.add(finger2LinkMesh);
+
+
+                // Add the entire robot group to the scene after all parts are assembled
+                scene.add(robotBaseGroup);
+                console.log("Mobile View: All robot parts loaded and assembled.");
+                console.log("Mobile View: jointObjects:", jointObjects);
+                console.log("Mobile View: linkObjects:", linkObjects);
+
+            } catch (error) {
+                console.error("Mobile View: Error assembling robot from STL files:", error);
+                showMessage("Error loading robot parts. Check console & STL file paths.", 10000);
+            }
         }
 
         function animate() {
             if (renderer && scene && camera) {
                 requestAnimationFrame(animate);
                 renderer.render(scene, camera);
+            } else {
+                console.warn("Mobile View: Renderer, scene, or camera not fully initialized for animation. Stopping animate loop.");
             }
         }
 
         function onWindowResize() {
             const container = document.getElementById('threejs-container');
             const aspect = container.clientWidth / container.clientHeight;
-            const frustumSize = 200;
+            const frustumSize = 100; // Keep consistent
 
-            camera.left = -frustumSize * aspect / 2;
-            camera.right = frustumSize * aspect / 2;
-            camera.top = frustumSize / 2;
+            camera.left   = -frustumSize * aspect / 2;
+            camera.right  =  frustumSize * aspect / 2;
+            camera.top    =  frustumSize / 2;
             camera.bottom = -frustumSize / 2;
 
             camera.updateProjectionMatrix();
             renderer.setSize(container.clientWidth, container.clientHeight);
+            console.log(`Mobile View: Window resized: Renderer set to ${renderer.domElement.width}x${renderer.domElement.height}`);
         }
 
-        // --- Socket Events ---
+        // --- Character Base Movement Sync (for overall robot position) ---
         socket.on('character_moved', (position) => {
-            if (!robotBaseGroup) return;
+            if (!robotBaseGroup) {
+                console.warn("Mobile View: robotBaseGroup not initialized when character_moved received. Model might still be loading.");
+                return;
+            }
+            // Map server X (0-900) to Three.js X (centered around 0, +/- 450)
             const scaledX = position.x - (MAX_X_POSITION_CLIENT / 2);
+            // Server Y position directly maps to Three.js Y. The base of the robot is assumed to be at Y=0 initially.
+            const scaledY = position.y; 
+            
             robotBaseGroup.position.x = scaledX;
-            robotBaseGroup.position.y = position.y;
+            robotBaseGroup.position.y = scaledY; // Y position on ground
+            console.log(`Mobile View: Robot base moved (server pos: ${position.x},${position.y}) -> (3D pos: ${robotBaseGroup.position.x.toFixed(2)},${robotBaseGroup.position.y.toFixed(2)})`);
         });
 
         socket.on('gravity', (position) => {
-            if (!robotBaseGroup) return;
+            if (!robotBaseGroup) {
+                console.warn("Mobile View: robotBaseGroup not initialized when gravity received. Model might still be loading.");
+                return;
+            }
+            const targetY = position.y; // Target Y position for the base
+
             const startY = robotBaseGroup.position.y;
-            const targetY = position.y;
             const duration = 300;
             const startTime = performance.now();
 
@@ -537,58 +615,84 @@
 
                 if (progress < 1) {
                     requestAnimationFrame(animateFall);
+                } else {
+                    robotBaseGroup.position.y = targetY;
                 }
             }
             requestAnimationFrame(animateFall);
+            console.log(`Mobile View: Gravity applied. Falling to Y: ${targetY}`);
         });
 
+
+        // --- Socket Event for Joint Angle Updates ---
         socket.on('initial_joint_states', (jointStates) => {
+            console.log('Mobile View: Received initial joint states:', jointStates);
             for (const jointName in jointStates) {
                 if (jointObjects.hasOwnProperty(jointName)) {
                     applyJointAngle(jointName, jointStates[jointName]);
+                } else {
+                    console.warn(`Mobile View: Initial state for unknown joint received: ${jointName}`);
                 }
             }
         });
 
         socket.on('joint_angle_updated', (data) => {
+            console.log(`Mobile View: Received joint update: ${data.joint_name}, angle: ${data.angle}`);
             if (jointObjects.hasOwnProperty(data.joint_name)) {
                 applyJointAngle(data.joint_name, data.angle);
+            } else {
+                console.warn(`Mobile View: Update for unknown joint received: ${data.joint_name}`);
             }
         });
 
+        // --- Function to apply joint angles to Three.js objects ---
         function applyJointAngle(jointName, angle) {
             const jointGroup = jointObjects[jointName];
-            if (!jointGroup) return;
+            if (!jointGroup) {
+                console.error(`Mobile View: Attempted to move non-existent joint group: ${jointName}`);
+                return;
+            }
 
+            // Apply rotation based on URDF axis and joint type
             switch (jointName) {
                 case 'shoulder_yaw':
-                    jointGroup.rotation.y = angle;
+                    jointGroup.rotation.z = angle; // URDF axis: 0 0 1 (Z-axis)
                     break;
                 case 'shoulder_pitch':
-                    jointGroup.rotation.x = angle;
+                    jointGroup.rotation.y = angle; // URDF axis: 0 1 0 (Y-axis)
                     break;
                 case 'elbow_pitch':
-                    jointGroup.rotation.x = angle;
+                    jointGroup.rotation.y = angle; // URDF axis: 0 1 0 (Y-axis)
                     break;
                 case 'wrist_pitch':
-                    jointGroup.rotation.x = angle;
+                    jointGroup.rotation.y = angle; // URDF axis: 0 1 0 (Y-axis)
                     break;
                 case 'wrist_roll':
-                    jointGroup.rotation.z = angle;
+                    jointGroup.rotation.x = angle; // URDF axis: 1 0 0 (X-axis)
                     break;
                 case 'finger_joint':
+                    // Prismatic joint: moves the finger links along their local Z axis
+                    // The 'angle' value is a linear position (0 to 0.014m in URDF)
                     if (linkObjects['finger_link_1']) {
-                        linkObjects['finger_link_1'].position.x = angle * 100;
+                        // This moves the finger mesh along its local Z-axis (as defined by finger1JointGroup's orientation)
+                        linkObjects['finger_link_1'].position.z = angle * URDF_SCALE;
                     }
                     if (linkObjects['finger_link_2']) {
-                        linkObjects['finger_link_2'].position.x = -angle * 100;
+                        // The other finger moves in the opposite direction
+                        linkObjects['finger_link_2'].position.z = -angle * URDF_SCALE;
                     }
                     break;
+                case 'finger_joint_2': // Mimics finger_joint, handled by finger_joint case
+                    break;
+                default:
+                    console.warn(`Mobile View: No direct application for joint: ${jointName}`);
             }
+            renderer.render(scene, camera); // Re-render after joint change
         }
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("Mobile View: DOMContentLoaded event fired. Initializing Three.js...");
             initThreeJS();
         });
 
@@ -601,6 +705,10 @@
         socket.on('disconnect', () => {
             console.log('Mobile View: Disconnected from server');
             showMessage('Disconnected from server', 3000);
+        });
+        socket.on('connect_error', (error) => {
+            console.error('Mobile View: Socket connection error:', error);
+            showMessage('Connection error: ' + error.message, 5000);
         });
     </script>
 </body>
