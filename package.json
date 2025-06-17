@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "flask-cors": "^0.0.1",
+    "three": "^0.177.0",
+    "urdf-loader": "^0.12.6"
   }
 }

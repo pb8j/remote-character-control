@@ -39,6 +39,70 @@
         #loginBtn { background-color: #28a745; color: white; padding: 12px; font-size: 18px; width: 100%; margin-top: 20px; }
         #loginBtn:hover { background-color: #218838; }
         #loginError { color: red; margin-top: 15px; text-align: center; font-weight: bold; }
+
+        /* Joint Controls Styling */
+        #joint-controls {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .joint-group {
+            margin-bottom: 15px;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .joint-group label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+            width: 100%;
+        }
+        .joint-group input[type="range"] {
+            width: 90%; /* Adjust width for slider */
+            -webkit-appearance: none; /* Override default look */
+            appearance: none;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        .joint-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        .joint-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        .joint-value {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
+            width: 100%;
+            text-align: right;
+            padding-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -53,6 +117,40 @@
     
     <img id="cameraFeed" alt="Camera Feed">
 
+    <!-- Joint Controls Section -->
+    <div id="joint-controls">
+        <h2>Robot Joint Control</h2>
+        <!-- Shoulder Yaw Joint -->
+        <div class="joint-group">
+            <label for="shoulder_yaw">Shoulder Yaw (<span id="shoulder_yaw_value">0.00</span> rad)</label>
+            <input type="range" id="shoulder_yaw" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+        <!-- Shoulder Pitch Joint -->
+        <div class="joint-group">
+            <label for="shoulder_pitch">Shoulder Pitch (<span id="shoulder_pitch_value">0.00</span> rad)</label>
+            <input type="range" id="shoulder_pitch" min="0" max="3.14" step="0.01" value="0">
+        </div>
+        <!-- Elbow Pitch Joint -->
+        <div class="joint-group">
+            <label for="elbow_pitch">Elbow Pitch (<span id="elbow_pitch_value">0.00</span> rad)</label>
+            <input type="range" id="elbow_pitch" min="-3.14" max="0" step="0.01" value="0">
+        </div>
+        <!-- Wrist Pitch Joint -->
+        <div class="joint-group">
+            <label for="wrist_pitch">Wrist Pitch (<span id="wrist_pitch_value">0.00</span> rad)</label>
+            <input type="range" id="wrist_pitch" min="-1.57" max="1.57" step="0.01" value="0">
+        </div>
+        <!-- Wrist Roll Joint -->
+        <div class="joint-group">
+            <label for="wrist_roll">Wrist Roll (<span id="wrist_roll_value">0.00</span> rad)</label>
+            <input type="range" id="wrist_roll" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+        <!-- Finger Joint (Prismatic - will simulate) -->
+        <div class="joint-group">
+            <label for="finger_joint">Finger Grasp (<span id="finger_joint_value">0.00</span>)</label>
+            <input type="range" id="finger_joint" min="0" max="0.014" step="0.001" value="0">
+        </div>
+    </div>
     
     <!-- Login Modal -->
     <div id="loginModal" class="modal">
@@ -78,7 +176,6 @@
         const FLASK_APP_URL = 'https://remote-character-control.onrender.com'; // Your deployed Render URL
 
         // --- DOM Elements ---
-        // Ensure Socket.IO connects to the Flask app URL for both HTTP fetches and WebSocket
         const socket = io(FLASK_APP_URL); 
         const cameraToggle = document.getElementById('cameraToggle');
         const cameraFeed = document.getElementById('cameraFeed');
@@ -87,17 +184,40 @@
         const loginBtn = document.getElementById('loginBtn');
         const loginError = document.getElementById('loginError');
 
+        // --- Joint Sliders and their values display ---
+        const jointSliders = [
+            { id: 'shoulder_yaw', element: document.getElementById('shoulder_yaw'), valueDisplay: document.getElementById('shoulder_yaw_value') },
+            { id: 'shoulder_pitch', element: document.getElementById('shoulder_pitch'), valueDisplay: document.getElementById('shoulder_pitch_value') },
+            { id: 'elbow_pitch', element: document.getElementById('elbow_pitch'), valueDisplay: document.getElementById('elbow_pitch_value') },
+            { id: 'wrist_pitch', element: document.getElementById('wrist_pitch'), valueDisplay: document.getElementById('wrist_pitch_value') },
+            { id: 'wrist_roll', element: document.getElementById('wrist_roll'), valueDisplay: document.getElementById('wrist_roll_value') },
+            { id: 'finger_joint', element: document.getElementById('finger_joint'), valueDisplay: document.getElementById('finger_joint_value') },
+        ];
+
+
         // --- Event Listeners ---
         document.getElementById('leftBtn').addEventListener('click', () => moveCharacter('left'));
         document.getElementById('rightBtn').addEventListener('click', () => moveCharacter('right'));
         document.getElementById('jumpBtn').addEventListener('click', () => moveCharacter('jump'));
-
         cameraToggle.addEventListener('click', toggleCamera);
-        
         closeBtn.addEventListener('click', () => loginModal.style.display = 'none');
         loginBtn.addEventListener('click', attemptLogin);
 
-        // Close modal if clicking outside
+        // Add event listeners for joint sliders
+        jointSliders.forEach(joint => {
+            if (joint.element) {
+                joint.element.addEventListener('input', (event) => {
+                    const angle = parseFloat(event.target.value);
+                    if (joint.valueDisplay) {
+                        joint.valueDisplay.textContent = angle.toFixed(2); // Display value with 2 decimal places
+                    }
+                    setJointAngle(joint.id, angle); // Send to server
+                });
+            } else {
+                console.warn(`Joint slider element not found for ID: ${joint.id}`);
+            }
+        });
+
         window.addEventListener('click', (event) => {
             if (event.target == loginModal) {
                 loginModal.style.display = 'none';
@@ -106,8 +226,7 @@
 
         // --- Socket Events (for Control Panel) ---
         socket.on('character_moved', (position) => {
-            console.log('Control Panel: Character moved to:', position);
-            // This control panel doesn't visually display the character, just logs.
+            console.log('Control Panel: Character base moved to:', position);
         });
 
         socket.on('camera_feed', (data) => {
@@ -115,12 +234,38 @@
             if (cameraFeed) {
                 cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
                 if (cameraFeed.style.display === 'none') {
-                    cameraFeed.style.display = 'block'; // Ensure feed is visible
+                    cameraFeed.style.display = 'block';
                 }
             } else {
                 console.warn("Control Panel: cameraFeed element not found.");
             }
         });
+
+        // <--- NEW: Handle initial joint states on connect to sync sliders --->
+        socket.on('initial_joint_states', (jointStates) => {
+            console.log('Control Panel: Received initial joint states:', jointStates);
+            jointSliders.forEach(joint => {
+                if (jointStates.hasOwnProperty(joint.id) && joint.element) {
+                    const value = jointStates[joint.id];
+                    joint.element.value = value; // Update slider position
+                    if (joint.valueDisplay) {
+                        joint.valueDisplay.textContent = value.toFixed(2); // Update display
+                    }
+                }
+            });
+        });
+
+        socket.on('joint_angle_updated', (data) => {
+            console.log(`Control Panel: Joint '${data.joint_name}' updated to: ${data.angle}`);
+            const joint = jointSliders.find(j => j.id === data.joint_name);
+            if (joint && joint.element) {
+                joint.element.value = data.angle; // Update slider if changed by another client
+                if (joint.valueDisplay) {
+                    joint.valueDisplay.textContent = data.angle.toFixed(2);
+                }
+            }
+        });
+
 
         socket.on('connect', () => {
             console.log('Control Panel: Connected to Flask SocketIO. Socket ID:', socket.id);
@@ -138,7 +283,7 @@
         // --- Functions ---
         function moveCharacter(direction) {
             console.log(`Control Panel: Sending move command: ${direction} to ${FLASK_APP_URL}/move_character`);
-            fetch(`${FLASK_APP_URL}/move_character`, { // Use full URL
+            fetch(`${FLASK_APP_URL}/move_character`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ direction })
@@ -157,11 +302,17 @@
             });
         }
 
+        // <--- NEW: Function to send joint angle updates to server --->
+        function setJointAngle(jointName, angle) {
+            console.log(`Control Panel: Sending joint update: ${jointName}, angle: ${angle}`);
+            socket.emit('set_joint_angle', { joint_name: jointName, angle: angle });
+        }
+
+
         function toggleCamera() {
             if (cameraToggle.classList.contains('active')) {
-                // Currently active, so send stop command
                 console.log("Control Panel: Sending stop camera command to mobile.");
-                fetch(`${FLASK_APP_URL}/toggle_camera`, { // Use full URL
+                fetch(`${FLASK_APP_URL}/toggle_camera`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'stop' })
@@ -172,15 +323,14 @@
                     cameraToggle.textContent = 'Start Camera';
                     cameraToggle.classList.remove('active');
                     cameraFeed.style.display = 'none';
-                    cameraFeed.src = ''; // Clear image
+                    cameraFeed.src = '';
                 })
                 .catch(error => {
                     console.error('Control Panel: Error stopping camera:', error);
                 });
             } else {
-                // Not active, show login modal to start camera
                 console.log("Control Panel: Showing login modal to start camera.");
-                loginModal.style.display = 'flex'; // Use flex for centering
+                loginModal.style.display = 'flex';
             }
         }
 
@@ -189,7 +339,7 @@
             const password = document.getElementById('password').value;
             console.log("Control Panel: Attempting login for camera access with username:", username);
 
-            fetch(`${FLASK_APP_URL}/login`, { // Use full URL
+            fetch(`${FLASK_APP_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -203,14 +353,14 @@
             .then(data => {
                 if (data.success) {
                     console.log("Control Panel: Login successful. Sending start camera command.");
-                    loginModal.style.display = 'none'; // Hide modal
+                    loginModal.style.display = 'none';
 
-                    fetch(`${FLASK_APP_URL}/toggle_camera`, { // Use full URL
+                    fetch(`${FLASK_APP_URL}/toggle_camera`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             action: 'start',
-                            auth: { username, password } // auth is not strictly needed by Flask here, but sending it is harmless
+                            auth: { username, password }
                         })
                     })
                     .then(response => response.json())
@@ -218,7 +368,6 @@
                         console.log('Control Panel: Start camera response:', toggleData);
                         cameraToggle.textContent = 'Stop Camera';
                         cameraToggle.classList.add('active');
-                        // cameraFeed.style.display will be handled when frames arrive on 'camera_feed' event
                     })
                     .catch(error => {
                         console.error('Control Panel: Error sending start camera command:', error);
