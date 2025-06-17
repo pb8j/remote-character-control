@@ -18,13 +18,13 @@ AUTH_PASSWORD = "password123"
 character_position = {'x': 50, 'y': 50}
 camera_active = False
 
-# Global state for joint angles
+# Global state for joint angles - Initialized with values from the image
 robot_joint_angles = {
-    'shoulder_yaw': 0.0,
-    'shoulder_pitch': 0.0,
-    'elbow_pitch': 0.0,
-    'wrist_pitch': 0.0,
-    'wrist_roll': 0.0,
+    'shoulder_yaw': 0.95,
+    'shoulder_pitch': 1.44,
+    'elbow_pitch': -0.20,
+    'wrist_pitch': 1.31,
+    'wrist_roll': -2.94,
     'finger_joint': 0.0,
     'finger_joint_2': 0.0
 }
@@ -73,10 +73,10 @@ def move_character():
         socketio.emit('character_moved', character_position)
         print(f"Character jumped to Y: {character_position['y']}")
         eventlet.spawn_after(JUMP_GRAVITY_DELAY_MS / 1000.0, apply_gravity_after_jump, ground_y)
-    
+
     if direction != 'jump':
         socketio.emit('character_moved', character_position)
-        
+
     return jsonify(character_position)
 
 @app.route('/toggle_camera', methods=['POST'])
@@ -84,12 +84,12 @@ def toggle_camera():
     global camera_active
     action = request.json.get('action')
     auth = request.json.get('auth')
-    
+
     if action == 'start':
         # Verify authentication for starting camera
         if not auth or auth.get('username') != AUTH_USERNAME or auth.get('password') != AUTH_PASSWORD:
             return jsonify({'error': 'Unauthorized'}), 401
-            
+
         camera_active = True
         socketio.emit('start_camera')
         print("Camera start requested from mobile.")
@@ -99,14 +99,14 @@ def toggle_camera():
         socketio.emit('stop_camera')
         print("Camera stop requested.")
         return jsonify({'status': 'camera_stopped'})
-    
+
     return jsonify({'error': 'Invalid action'}), 400
 
 @socketio.on('set_joint_angle')
 def handle_set_joint_angle(data):
     joint_name = data.get('joint_name')
     angle = data.get('angle')
-    
+
     if joint_name in robot_joint_angles:
         robot_joint_angles[joint_name] = angle
         print(f"Joint '{joint_name}' set to angle: {angle} radians")

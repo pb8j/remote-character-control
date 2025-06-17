@@ -17,16 +17,16 @@
         #cameraToggle:hover { background: #c82333; }
         #cameraToggle.active:hover { background: #218838; }
 
-        #cameraFeed { 
-            width: 320px; 
-            height: 240px; 
-            border: 2px solid #ccc; 
+        #cameraFeed {
+            width: 320px;
+            height: 240px;
+            border: 2px solid #ccc;
             display: none; /* Initially hidden */
             margin-top: 20px;
             background-color: #eee; /* Placeholder background */
             object-fit: contain; /* Ensure entire image is visible, no cropping */
         }
-        
+
         /* Login Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: white; padding: 30px; width: 350px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
@@ -107,52 +107,44 @@
 </head>
 <body>
     <h1>Character Control Panel</h1>
-    
+
     <div id="controls">
         <button id="leftBtn">Left</button>
         <button id="jumpBtn">Jump</button>
         <button id="rightBtn">Right</button>
         <button id="cameraToggle">Start Camera</button>
     </div>
-    
+
     <img id="cameraFeed" alt="Camera Feed">
 
-    <!-- Joint Controls Section -->
     <div id="joint-controls">
         <h2>Robot Joint Control</h2>
-        <!-- Shoulder Yaw Joint -->
         <div class="joint-group">
             <label for="shoulder_yaw">Shoulder Yaw (<span id="shoulder_yaw_value">0.00</span> rad)</label>
             <input type="range" id="shoulder_yaw" min="-3.14" max="3.14" step="0.01" value="0">
         </div>
-        <!-- Shoulder Pitch Joint -->
         <div class="joint-group">
             <label for="shoulder_pitch">Shoulder Pitch (<span id="shoulder_pitch_value">0.00</span> rad)</label>
             <input type="range" id="shoulder_pitch" min="0" max="3.14" step="0.01" value="0">
         </div>
-        <!-- Elbow Pitch Joint -->
         <div class="joint-group">
             <label for="elbow_pitch">Elbow Pitch (<span id="elbow_pitch_value">0.00</span> rad)</label>
             <input type="range" id="elbow_pitch" min="-3.14" max="0" step="0.01" value="0">
         </div>
-        <!-- Wrist Pitch Joint -->
         <div class="joint-group">
             <label for="wrist_pitch">Wrist Pitch (<span id="wrist_pitch_value">0.00</span> rad)</label>
             <input type="range" id="wrist_pitch" min="-1.57" max="1.57" step="0.01" value="0">
         </div>
-        <!-- Wrist Roll Joint -->
         <div class="joint-group">
             <label for="wrist_roll">Wrist Roll (<span id="wrist_roll_value">0.00</span> rad)</label>
             <input type="range" id="wrist_roll" min="-3.14" max="3.14" step="0.01" value="0">
         </div>
-        <!-- Finger Joint (Prismatic - will simulate) -->
         <div class="joint-group">
             <label for="finger_joint">Finger Grasp (<span id="finger_joint_value">0.00</span>)</label>
-            <input type="range" id="finger_joint" min="0" max="0.014" step="0.001" value="0">
+            <input type="range" id="finger_joint" min="0" max="0.5" step="0.001" value="0">
         </div>
     </div>
-    
-    <!-- Login Modal -->
+
     <div id="loginModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -176,7 +168,7 @@
         const FLASK_APP_URL = 'https://remote-character-control.onrender.com'; // Your deployed Render URL
 
         // --- DOM Elements ---
-        const socket = io(FLASK_APP_URL); 
+        const socket = io(FLASK_APP_URL);
         const cameraToggle = document.getElementById('cameraToggle');
         const cameraFeed = document.getElementById('cameraFeed');
         const loginModal = document.getElementById('loginModal');
@@ -192,6 +184,7 @@
             { id: 'wrist_pitch', element: document.getElementById('wrist_pitch'), valueDisplay: document.getElementById('wrist_pitch_value') },
             { id: 'wrist_roll', element: document.getElementById('wrist_roll'), valueDisplay: document.getElementById('wrist_roll_value') },
             { id: 'finger_joint', element: document.getElementById('finger_joint'), valueDisplay: document.getElementById('finger_joint_value') },
+            // Note: finger_joint_2 is controlled by finger_joint in mobile_view.html, so no separate slider needed here.
         ];
 
 
@@ -358,7 +351,7 @@
                     fetch(`${FLASK_APP_URL}/toggle_camera`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             action: 'start',
                             auth: { username, password }
                         })
