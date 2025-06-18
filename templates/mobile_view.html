@@ -327,41 +327,40 @@
             // URDF Loader
             const loader = new THREE.URDFLoader();
             loader.packages = {
-                'robotiq_arg85_description': ROBOT_PACKAGE_PATH // Package name from URDF, mapped to path
+                'robotiq_arg85_description': ROBOT_PACKAGE_PATH 
             };
-            loader.workingPath = ROBOT_PACKAGE_PATH; // Set working path for relative mesh paths in URDF
+            loader.workingPath = ROBOT_PACKAGE_PATH;
 
-            loadingSpinner.style.display = 'block'; // Show spinner
+            loadingSpinner.style.display = 'block';
 
             loader.load(ROBOT_URDF_PATH, result => {
                 robotModel = result;
                 scene.add(robotModel);
                 console.log('Mobile View: Robotiq 85 Gripper Loaded:', robotModel);
 
-                const scaleFactor = 100; // Gripper is small, scale it up significantly
+                const scaleFactor = 100; 
                 robotModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                robotModel.position.set(0, -0.05 * scaleFactor, 0); // Adjust vertical offset
+                robotModel.position.set(0, -0.05 * scaleFactor, 0);
 
-                // Adjust camera to view the loaded robot (gripper)
+
                 const box = new THREE.Box3().setFromObject(robotModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
 
-                // Set camera target to the center of the gripper
+
                 controls.target.copy(center);
-                // Position camera for better view of gripper
-                camera.position.set(center.x + 0.1, center.y + 0.1, center.z + 0.1); // Slightly offset view
-                camera.lookAt(center); // Look at the center of the gripper
+                camera.position.set(center.x + 0.1, center.y + 0.1, center.z + 0.1); 
+                camera.lookAt(center); 
 
-                controls.update(); // Update controls after changing target/position
+                controls.update(); 
 
-                camera.far = 10; // Adjust far clipping plane
-                camera.near = 0.001; // Adjust near clipping plane
+                camera.far = 10; 
+                camera.near = 0.001; 
                 camera.updateProjectionMatrix();
 
                 console.log("Mobile View: Camera adjusted for gripper. Center:", center, "Position:", camera.position);
 
-                loadingSpinner.style.display = 'none'; // Hide spinner
+                loadingSpinner.style.display = 'none'; 
 
                 // Populate joint displays for Robotiq 85 gripper
                 jointAnglesDisplay.innerHTML = '<strong>Joint Angles:</strong>';
