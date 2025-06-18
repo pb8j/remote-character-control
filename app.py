@@ -1,13 +1,14 @@
 import eventlet
 eventlet.monkey_patch() # Patch standard library for async operations
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_socketio import SocketIO
 from flask_cors import CORS
 import base64
 import os
 import random # For generating random device IDs for phones
 
-app = Flask(__name__)
+# Configure Flask to serve static files from the 'public' directory
+app = Flask(__name__, static_folder='public', static_url_path='') # Set 'public' as static folder, serve from root URL
 app.config['SECRET_KEY'] = os.urandom(24) # Generate a random secret key for Flask sessions
 socketio = SocketIO(app, cors_allowed_origins="*") # Enable SocketIO with CORS for all origins
 CORS(app) # Enable Flask CORS for all origins
@@ -33,13 +34,17 @@ robot_joint_angles = {
 @app.route('/')
 def index():
     """Renders the control panel HTML page."""
+    # Flask will now look for control_panel.html in the 'templates' folder
     return render_template('control_panel.html')
 
 @app.route('/mobile')
 def mobile():
     """Renders the mobile view HTML page."""
+    # Flask will now look for mobile_view.html in the 'templates' folder
     return render_template('mobile_view.html')
 
+# This route is no longer strictly needed if WebRTC handles camera toggle directly
+# but keeping it for completeness if you had other camera control logic.
 @app.route('/toggle_camera', methods=['POST'])
 def toggle_camera():
     """
