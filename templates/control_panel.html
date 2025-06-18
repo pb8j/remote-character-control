@@ -57,38 +57,7 @@
             margin-bottom: 15px;
         }
 
-        .dropdown-group {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .label {
-            font-size: 1em;
-            color: #333;
-            font-weight: bold;
-        }
-
-        .select-style {
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 1px solid #a0a0a0;
-            background-color: #f9f9f9;
-            font-size: 0.95em;
-            cursor: pointer;
-            outline: none;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
-            appearance: none; /* Remove default arrow */
-            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%20197.8c-3.6%203.6-7.8%205.4-12.8%205.4H18.2c-5%200-9.2-1.8-12.8-5.4-3.6-3.6-5.4-7.8-5.4-12.8s1.8-9.2%205.4-12.8L133.2%2017c3.6-3.6%207.8-5.4%2012.8-5.4s9.2%201.8%2012.8%205.4l127.8%20127.8c3.6%203.6%205.4%207.8%205.4%2012.8s-1.8%209.2-5.4%2012.8z%22%2F%3E%3C%2Fsvg%3E");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 12px;
-            padding-right: 30px; /* Space for the custom arrow */
-        }
-
-        .camera-feed-container {
+        .camera-feed-container, .robot-control-section, .robot-movement-section {
             border: 1px solid #d3d3d3;
             border-radius: 10px;
             padding: 15px;
@@ -122,14 +91,6 @@
         .toggle-camera-button:hover {
             background-color: #218838;
             transform: translateY(-1px);
-        }
-
-        .robot-control-section {
-            border: 1px solid #d3d3d3;
-            border-radius: 10px;
-            padding: 15px;
-            background-color: #fcfcfc;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .joint-slider-group {
@@ -204,6 +165,48 @@
             margin-bottom: 10px;
         }
 
+        /* Movement Buttons Grid */
+        .movement-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columns */
+            gap: 10px;
+            margin-top: 15px;
+            max-width: 300px; /* Limit width to make buttons appear compact */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .movement-button {
+            padding: 12px 0; /* Adjust padding for button size */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em; /* Smaller font for more buttons */
+            font-weight: 600;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0,123,255,0.2);
+        }
+        .movement-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        .movement-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 3px rgba(0,123,255,0.3);
+        }
+        /* Specific styling for the 'Jump' button to differentiate */
+        .movement-button.jump {
+            grid-column: 2 / 3; /* Center it in the middle column */
+            background-color: #ffc107; /* Yellow */
+            color: #333;
+            box-shadow: 0 2px 5px rgba(255,193,7,0.2);
+        }
+        .movement-button.jump:hover {
+            background-color: #e0a800;
+        }
+
         /* Custom Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -257,25 +260,17 @@
         <h2 class="header">Control Panel</h2>
         <p id="status" class="status-box">Status: Connecting to server...</p>
 
-        <div class="dropdown-group">
-            <label for="phone-select" class="label">Select Phone Device: </label>
-            <select id="phone-select" class="select-style">
-                <option value="">-- Select a phone --</option>
-                <!-- Options will be populated by JavaScript -->
-            </select>
-        </div>
-
         <!-- Camera Feed Section -->
         <div class="camera-feed-container">
             <h3 class="text-xl font-semibold mb-2">Live Camera Feed from Mobile</h3>
             <video id="remote-video" class="video-feed-style" autoplay playsinline></video>
-            <p id="no-phone-selected-camera-message" class="no-phone-message hidden">
-                Select a phone to view its live feed.
+            <p id="no-phone-connected-camera-message" class="no-phone-message">
+                Waiting for a mobile device to connect and stream.
             </p>
             <button id="toggle-camera-button" class="toggle-camera-button">Start Camera Feed (WebRTC)</button>
         </div>
 
-        <!-- Robot Control Section -->
+        <!-- Robot Control Section (Gripper Specific) -->
         <div class="robot-control-section">
             <h3 class="text-xl font-semibold mb-2">Robot Gripper Control (Robotiq 85)</h3>
             <div class="joint-slider-group">
@@ -296,6 +291,26 @@
                     (This gripper has a single main control joint; other finger joints mimic it automatically.)
                 </p>
             </div>
+        </div>
+
+        <!-- Robot Movement Section (Conceptual, for a mobile base) -->
+        <div class="robot-movement-section">
+            <h3 class="text-xl font-semibold mb-2">Robot Base Movement (Conceptual)</h3>
+            <div class="movement-buttons">
+                <div></div> <!-- Empty cell for grid alignment -->
+                <button class="movement-button" data-cmd="forward">Forward</button>
+                <div></div>
+                <button class="movement-button" data-cmd="turn_left">Turn Left</button>
+                <button class="movement-button" data-cmd="backward">Backward</button>
+                <button class="movement-button" data-cmd="turn_right">Turn Right</button>
+                <button class="movement-button" data-cmd="up">Move Up</button>
+                <button class="movement-button" data-cmd="down">Move Down</button>
+                <button class="movement-button jump" data-cmd="jump">Jump</button>
+            </div>
+            <p class="gripper-note mt-4">
+                (These commands are sent to the mobile device. If the mobile device displays a gripper model,
+                these commands will not visibly move the gripper itself, as it is not a mobile robot.)
+            </p>
         </div>
 
         <!-- Local 3D Robot Visualization (Robotiq 85) -->
@@ -322,12 +337,11 @@
         let peerConnection;
         const remoteVideoRef = document.getElementById('remote-video');
         const statusElement = document.getElementById('status');
-        const phoneSelect = document.getElementById('phone-select');
+        // const phoneSelect = document.getElementById('phone-select'); // Removed
         const toggleCameraButton = document.getElementById('toggle-camera-button');
-        const noPhoneSelectedCameraMessage = document.getElementById('no-phone-selected-camera-message');
+        const noPhoneConnectedCameraMessage = document.getElementById('no-phone-connected-camera-message');
 
-        let availablePhones = [];
-        let selectedPhoneId = "";
+        let connectedPhoneId = null; // Will store the ID of the first connected phone
         let cameraFeedActive = false; // Tracks if WebRTC stream is active
 
         // Three.js for URDF Visualization
@@ -357,7 +371,7 @@
             scene.background = new THREE.Color(0xf5f5f5); // Light grey background
 
             // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (350), 0.001, 10); // Adjusted for gripper
+            camera = new THREE.PerspectiveCamera(75, document.querySelector('.urdf-container').offsetWidth / (350), 0.001, 10); // Adjusted for gripper
             camera.position.set(0.1, 0.1, 0.1); // Closer view for small gripper
 
             // Renderer
@@ -386,12 +400,13 @@
             // URDF Loader
             const loader = new THREE.URDFLoader();
             // Important: Set package path correctly based on your Flask static setup
+            // Adjusted paths to be absolute based on your file structure (public/robots/)
             loader.packages = {
-                'robotiq_arg85_description': './robots' // Flask serves URDF and meshes from /robots
+                'robotiq_arg85_description': '/robots' // Flask serves URDF and meshes from /robots
             };
-            loader.workingPath = './robots/'; // Necessary for relative mesh paths in URDF
+            loader.workingPath = '/robots/'; // Necessary for relative mesh paths in URDF
 
-            loader.load('./robots/robotiq_arg85_description.URDF', result => {
+            loader.load('/robots/robotiq_arg85_description.URDF', result => {
                 robotModel = result;
                 scene.add(robotModel);
                 console.log('Control Panel: Robotiq 85 URDF model loaded:', robotModel);
@@ -446,6 +461,7 @@
             socket.on("connect", () => {
                 statusElement.textContent = "Connected to server. Registering laptop...";
                 socket.emit("register_laptop");
+                // Immediately request available phones to set target
                 socket.emit("get_available_phones");
             });
 
@@ -457,28 +473,30 @@
 
             socket.on("available_phones", (phones) => {
                 console.log("Available phones:", phones);
-                availablePhones = phones;
-                updatePhoneDropdown();
-                // Auto-select the first phone if none is selected and phones are available
-                if (!selectedPhoneId && phones.length > 0) {
-                    selectedPhoneId = phones[0];
-                    phoneSelect.value = selectedPhoneId;
-                    toggleCameraFeedVisibility(); // Update UI immediately
-                    statusElement.textContent = `Selected phone: ${selectedPhoneId}. Ready to stream.`;
-                } else if (phones.length === 0) {
-                    selectedPhoneId = "";
-                    phoneSelect.value = "";
-                    remoteVideoRef.srcObject = null; // Clear stream
-                    remoteVideoRef.classList.add('hidden'); // Hide video element
-                    noPhoneSelectedCameraMessage.classList.remove('hidden'); // Show message
-                    toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+                if (phones.length > 0) {
+                    connectedPhoneId = phones[0]; // Set the first available phone as the target
+                    statusElement.textContent = `Connected to phone: ${connectedPhoneId}. Ready for control.`;
+                    toggleCameraButton.disabled = false; // Enable camera button
+                    noPhoneConnectedCameraMessage.classList.add('hidden'); // Hide message
+                } else {
+                    connectedPhoneId = null;
+                    statusElement.textContent = "No mobile devices online. Waiting for connection...";
+                    toggleCameraButton.disabled = true; // Disable camera button
+                    // Ensure camera feed is off and message is visible
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+                    remoteVideoRef.srcObject = null;
                     cameraFeedActive = false;
-                    statusElement.textContent = "No phones online. Waiting for devices...";
+                    toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+                    remoteVideoRef.classList.add('hidden');
+                    noPhoneConnectedCameraMessage.classList.remove('hidden');
                 }
             });
 
             socket.on("sdp_offer_from_phone", async ({ sdpOffer, phoneDeviceId }) => {
-                if (phoneDeviceId !== selectedPhoneId) {
+                if (phoneDeviceId !== connectedPhoneId) {
                     console.warn(`Received SDP Offer from unselected phone ${phoneDeviceId}. Ignoring.`);
                     return;
                 }
@@ -528,6 +546,7 @@
             socket.on("disconnect", () => {
                 statusElement.textContent = "Disconnected from server.";
                 console.log("Laptop: Disconnected from server.");
+                connectedPhoneId = null; // Clear connected phone ID
                 if (peerConnection) {
                     peerConnection.close();
                     peerConnection = null;
@@ -535,28 +554,9 @@
                 remoteVideoRef.srcObject = null;
                 cameraFeedActive = false;
                 toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
-                toggleCameraFeedVisibility(); // Ensure UI updates
+                remoteVideoRef.classList.add('hidden'); // Hide video on disconnect
+                noPhoneConnectedCameraMessage.classList.remove('hidden'); // Show message
             });
-        }
-
-        function updatePhoneDropdown() {
-            phoneSelect.innerHTML = '<option value="">-- Select a phone --</option>';
-            if (availablePhones.length === 0) {
-                const option = document.createElement('option');
-                option.value = "";
-                option.disabled = true;
-                option.textContent = "No phones online";
-                phoneSelect.appendChild(option);
-            } else {
-                availablePhones.forEach(id => {
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = id;
-                    phoneSelect.appendChild(option);
-                });
-            }
-            phoneSelect.value = selectedPhoneId; // Restore selection
-            toggleCameraFeedVisibility(); // Update UI
         }
 
         // --- WebRTC Functions ---
@@ -591,7 +591,8 @@
                     statusElement.textContent = "Streaming live!";
                     cameraFeedActive = true;
                     toggleCameraButton.textContent = "Stop Camera Feed (WebRTC)";
-                    toggleCameraFeedVisibility();
+                    remoteVideoRef.classList.remove('hidden'); // Show video element
+                    noPhoneConnectedCameraMessage.classList.add('hidden'); // Hide message
                 }
             };
 
@@ -608,40 +609,9 @@
         }
 
         // --- UI Event Handlers ---
-        phoneSelect.addEventListener('change', (e) => {
-            selectedPhoneId = e.target.value;
-            toggleCameraFeedVisibility(); // Update UI immediately
-            if (selectedPhoneId) {
-                statusElement.textContent = `Requesting stream from ${selectedPhoneId}...`;
-                // If a stream was active, close it before requesting a new one
-                if (peerConnection) {
-                    peerConnection.close();
-                    peerConnection = null;
-                }
-                remoteVideoRef.srcObject = null; // Clear previous stream
-                cameraFeedActive = false; // Reset camera feed state
-                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)"; // Reset button text
-
-                // Request stream initialization from the selected phone
-                socket.emit("request_stream", {
-                    phoneDeviceId: selectedPhoneId,
-                    laptopSocketId: socket.id
-                });
-            } else {
-                statusElement.textContent = "Please select a phone to control.";
-                if (peerConnection) {
-                    peerConnection.close();
-                    peerConnection = null;
-                }
-                remoteVideoRef.srcObject = null;
-                cameraFeedActive = false;
-                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
-            }
-        });
-
         toggleCameraButton.addEventListener('click', () => {
-            if (!selectedPhoneId) {
-                showCustomModal("Please select a phone to toggle camera feed.");
+            if (!connectedPhoneId) {
+                showCustomModal("No mobile device connected to toggle camera feed.");
                 return;
             }
 
@@ -653,34 +623,19 @@
                 }
                 remoteVideoRef.srcObject = null;
                 cameraFeedActive = false;
-                statusElement.textContent = `WebRTC stream stopped for ${selectedPhoneId}.`;
+                statusElement.textContent = `WebRTC stream stopped for ${connectedPhoneId}.`;
                 toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
-                toggleCameraFeedVisibility();
+                remoteVideoRef.classList.add('hidden'); // Hide video
+                noPhoneConnectedCameraMessage.classList.remove('hidden'); // Show message
             } else {
                 // Request a new WebRTC stream
-                statusElement.textContent = `Requesting stream from ${selectedPhoneId}...`;
+                statusElement.textContent = `Requesting stream from ${connectedPhoneId}...`;
                 socket.emit("request_stream", {
-                    phoneDeviceId: selectedPhoneId,
+                    phoneDeviceId: connectedPhoneId,
                     laptopSocketId: socket.id
                 });
             }
         });
-
-        // Function to update visibility of video element and "no phone" message
-        function toggleCameraFeedVisibility() {
-            if (selectedPhoneId && cameraFeedActive) {
-                remoteVideoRef.classList.remove('hidden');
-                noPhoneSelectedCameraMessage.classList.add('hidden');
-            } else if (selectedPhoneId && !cameraFeedActive) {
-                // If phone is selected but stream is not active (e.g., just selected, or stopped)
-                remoteVideoRef.classList.remove('hidden'); // Keep video element visible, but might be black
-                noPhoneSelectedCameraMessage.classList.add('hidden');
-            }
-             else {
-                remoteVideoRef.classList.add('hidden');
-                noPhoneSelectedCameraMessage.classList.remove('hidden');
-            }
-        }
 
 
         const fingerJointSlider = document.getElementById('finger_joint');
@@ -697,9 +652,9 @@
 
         fingerJointSlider.addEventListener('change', (e) => {
             const value = parseFloat(e.target.value);
-            if (!selectedPhoneId) {
-                showCustomModal("Please select a phone to control the robot.");
-                // Reset slider value to previous state if no phone is selected
+            if (!connectedPhoneId) {
+                showCustomModal("No mobile device connected to control the robot.");
+                // Reset slider value to previous state if no phone is connected
                 e.target.value = localJointStates.finger_joint;
                 fingerJointValueDisplay.textContent = localJointStates.finger_joint.toFixed(3);
                 return;
@@ -708,10 +663,24 @@
             socket.emit("set_joint_angle", {
                 joint_name: 'finger_joint',
                 angle: value,
-                targetPhoneId: selectedPhoneId // In case Flask needs to filter
+                targetPhoneId: connectedPhoneId
             });
-            console.log(`Sent finger_joint command: ${value} to ${selectedPhoneId}`);
+            console.log(`Sent finger_joint command: ${value} to ${connectedPhoneId}`);
         });
+
+        // Event listeners for movement buttons
+        document.querySelectorAll('.movement-button').forEach(button => {
+            button.addEventListener('click', () => {
+                if (!connectedPhoneId) {
+                    showCustomModal("No mobile device connected to send movement commands.");
+                    return;
+                }
+                const command = button.dataset.cmd;
+                socket.emit("control", { cmd: command, targetPhoneId: connectedPhoneId });
+                console.log(`Sent movement command: ${command} to ${connectedPhoneId}`);
+            });
+        });
+
 
         // --- Initialization on Window Load ---
         window.onload = function() {

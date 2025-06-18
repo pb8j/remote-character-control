@@ -225,7 +225,7 @@
 
         <!-- Video Container -->
         <div id="video-display-area" class="video-container">
-            <video id="local-video" class="video-stream" autoplay playsinline muted></video>
+            <video id="local-video" class="video-stream" autoplay playsInline muted></video>
         </div>
 
         <!-- URDF Container -->
@@ -255,8 +255,9 @@
         // --- Configuration ---
         const FLASK_APP_URL = "https://remote-character-control.onrender.com";
         const PHONE_DEVICE_ID = `phone-${Math.random().toString(36).substring(2, 9)}`; // Unique ID for this phone instance
-        const ROBOT_URDF_PATH = "./hexapod_robot/crab_model.urdf"; // Path relative to Flask static
-        const ROBOT_PACKAGE_PATH = "./hexapod_robot/"; // Path for meshes relative to Flask static
+        // Corrected paths to point to the Robotiq 85 gripper URDF in the 'robots' folder
+        const ROBOT_URDF_PATH = "/robots/robotiq_arg85_description.URDF"; // Path relative to Flask static root
+        const ROBOT_PACKAGE_PATH = "/robots/"; // Path for meshes relative to Flask static root (where your STL files are inside 'meshes' folder under 'robots')
 
         // --- Global Variables ---
         let socket;
@@ -266,7 +267,7 @@
 
         // Three.js for URDF Visualization
         let scene, camera, renderer, controls;
-        let robotModel; // The loaded Hexapod URDF model
+        let robotModel; // The loaded Robotiq 85 Gripper URDF model
         const jointDisplays = {}; // To update joint angle text dynamically on screen
 
         // Elements
@@ -277,12 +278,6 @@
         const urdfDisplayArea = document.getElementById('urdf-display-area');
         const loadingSpinner = document.getElementById('loading-spinner');
         const jointAnglesDisplay = document.getElementById('joint-angles-display');
-
-        // Initial joint states for local URDF
-        let localJointStates = {
-            cmd: '', // For movement commands like 'left', 'right', 'jump'
-            timestamp: Date.now() // To force useEffect-like updates
-        };
 
 
         // --- Custom Message Box Functions (replaces alert/confirm) ---
@@ -295,15 +290,16 @@
             document.getElementById('message-box').style.display = 'none';
         }
 
-        // --- Three.js Initialization for Hexapod URDF ---
+        // --- Three.js Initialization for Robotiq 85 URDF ---
         function initThreeJS() {
             // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xe3f2fd); // Lighter blue for 3D viewer
+            scene.background = new THREE.Color(0xe3f2fd); // Lighter blue background
 
             // Camera
-            camera = new THREE.PerspectiveCamera(75, urdfDisplayArea.offsetWidth / urdfDisplayArea.offsetHeight, 0.1, 2000);
-            camera.position.set(10, 10, 10); // Initial position for the hexapod
+            // Adjusted camera for viewing the small gripper model
+            camera = new THREE.PerspectiveCamera(75, urdfDisplayArea.offsetWidth / urdfDisplayArea.offsetHeight, 0.001, 10);
+            camera.position.set(0.1, 0.1, 0.1); // Closer initial position
 
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -322,72 +318,82 @@
             const ambientLight = new THREE.AmbientLight(0x404040, 2);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(2, 5, 2).normalize();
+            directionalLight.position.set(0.5, 0.5, 0.5).normalize(); // Adjusted for gripper
             scene.add(directionalLight);
             const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight2.position.set(-2, -5, -2).normalize();
+            directionalLight2.position.set(-0.5, -0.5, -0.5).normalize(); // Adjusted for gripper
             scene.add(directionalLight2);
 
             // URDF Loader
             const loader = new THREE.URDFLoader();
             loader.packages = {
-                'hexapod_robot': ROBOT_PACKAGE_PATH
+                'robotiq_arg85_description': ROBOT_PACKAGE_PATH // Package name from URDF, mapped to path
             };
-            loader.workingPath = ROBOT_PACKAGE_PATH;
+            loader.workingPath = ROBOT_PACKAGE_PATH; // Set working path for relative mesh paths in URDF
 
             loadingSpinner.style.display = 'block'; // Show spinner
 
             loader.load(ROBOT_URDF_PATH, result => {
                 robotModel = result;
                 scene.add(robotModel);
-                console.log('Mobile View: Hexapod Robot Loaded:', robotModel);
+                console.log('Mobile View: Robotiq 85 Gripper Loaded:', robotModel);
 
-                const scaleFactor = 10;
+                const scaleFactor = 100; // Gripper is small, scale it up significantly
                 robotModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                robotModel.position.set(0, -2.0 * scaleFactor, 0); // Adjust vertical offset
+                robotModel.position.set(0, -0.05 * scaleFactor, 0); // Adjust vertical offset
 
-                // Adjust camera to view the loaded robot
+                // Adjust camera to view the loaded robot (gripper)
                 const box = new THREE.Box3().setFromObject(robotModel);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
 
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const fov = camera.fov * (Math.PI / 180);
-                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-                cameraZ *= 1.5; // Adjust camera distance for better view
-
-                camera.position.set(center.x, center.y + size.y / 2, cameraZ + center.z);
-                camera.lookAt(center);
-
+                // Set camera target to the center of the gripper
                 controls.target.copy(center);
-                controls.update();
+                // Position camera for better view of gripper
+                camera.position.set(center.x + 0.1, center.y + 0.1, center.z + 0.1); // Slightly offset view
+                camera.lookAt(center); // Look at the center of the gripper
 
-                camera.far = cameraZ * 2;
-                camera.near = 0.01;
+                controls.update(); // Update controls after changing target/position
+
+                camera.far = 10; // Adjust far clipping plane
+                camera.near = 0.001; // Adjust near clipping plane
                 camera.updateProjectionMatrix();
 
-                console.log("Mobile View: Camera adjusted to center:", center, "and position:", camera.position);
+                console.log("Mobile View: Camera adjusted for gripper. Center:", center, "Position:", camera.position);
 
                 loadingSpinner.style.display = 'none'; // Hide spinner
 
-                // Populate joint displays
+                // Populate joint displays for Robotiq 85 gripper
                 jointAnglesDisplay.innerHTML = '<strong>Joint Angles:</strong>';
-                for (const jointName in robotModel.joints) {
-                    const joint = robotModel.joints[jointName];
-                    if (joint.jointType !== 'fixed') { // Only display non-fixed joints
-                        const div = document.createElement('div');
-                        div.id = `joint-${jointName}`;
-                        div.textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${joint.jointValue.toFixed(2)}`;
-                        jointAnglesDisplay.appendChild(div);
-                        jointDisplays[jointName] = div;
-                    }
+                // Only expect 'finger_joint' for direct control, others are mimicked
+                const controlledJointName = 'finger_joint';
+                const joint = robotModel.joints[controlledJointName];
+                if (joint && joint.jointType !== 'fixed') {
+                    const div = document.createElement('div');
+                    div.id = `joint-${controlledJointName}`;
+                    div.textContent = `${controlledJointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${joint.jointValue.toFixed(3)}`;
+                    jointAnglesDisplay.appendChild(div);
+                    jointDisplays[controlledJointName] = div;
+                } else {
+                     // Add placeholder for other joints that might be defined in URDF but not directly controlled
+                    const placeholderJoints = ['finger_joint_2', 'left_inner_knuckle_joint', 'right_inner_knuckle_joint', 'left_inner_finger_joint', 'right_inner_finger_joint', 'left_outer_knuckle_joint', 'right_outer_knuckle_joint'];
+                    placeholderJoints.forEach(jName => {
+                        if (robotModel.joints[jName]) {
+                            const div = document.createElement('div');
+                            div.id = `joint-${jName}`;
+                            div.textContent = `${jName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${robotModel.joints[jName].jointValue.toFixed(3)}`;
+                            jointAnglesDisplay.appendChild(div);
+                            jointDisplays[jName] = div;
+                        }
+                    });
                 }
+
 
             },
             xhr => { console.log(`URDF loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`); },
             error => {
                 console.error('Mobile View: Error loading URDF:', error);
-                showMessageBox('Failed to load hexapod robot model. Check URDF path and mesh files and server.');
+                showMessageBox('Failed to load Robotiq 85 gripper model. Check URDF path and mesh files and server.');
                 loadingSpinner.style.display = 'none';
             });
 
@@ -396,11 +402,7 @@
                 requestAnimationFrame(animate);
                 controls.update();
                 renderer.render(scene, camera);
-                // Apply hexapod movement commands if in URDF mode
-                if (displayMode === 'urdf' && robotModel && localJointStates.cmd) {
-                    applyHexapodCommand(localJointStates.cmd);
-                    localJointStates.cmd = ''; // Clear command after applying
-                }
+                // No specific hexapod movement commands to apply here anymore
             };
             animate();
 
@@ -453,13 +455,10 @@
                 }
             });
 
-            // Listener for general control commands (e.g., for hexapod movement)
+            // Listener for general control commands (e.g., for hexapod movement) - now largely ignored for gripper
             socket.on("control", (cmd) => {
-                console.log(`Phone: Command received: ${cmd}`);
-                if (displayMode === 'urdf') {
-                    // Update local joint states with command to trigger URDF animation
-                    localJointStates = { cmd: cmd, timestamp: Date.now() };
-                }
+                console.log(`Phone: Received command: ${cmd}. (Note: Movement commands are ignored for gripper model.)`);
+                // No action needed for gripper for these commands
             });
 
             // Listener for specific joint angle updates (e.g., from gripper control on laptop)
@@ -469,7 +468,7 @@
                 if (robotModel && robotModel.joints[joint_name]) {
                     robotModel.joints[joint_name].setJointValue(angle);
                     if (jointDisplays[joint_name]) {
-                        jointDisplays[joint_name].textContent = `${joint_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${angle.toFixed(2)}`;
+                        jointDisplays[joint_name].textContent = `${joint_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${angle.toFixed(3)}`;
                     }
                 }
             });
@@ -482,7 +481,7 @@
                         if (robotModel.joints[jointName]) {
                             robotModel.joints[jointName].setJointValue(initialStates[jointName]);
                             if (jointDisplays[jointName]) {
-                                jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${initialStates[jointName].toFixed(2)}`;
+                                jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${initialStates[jointName].toFixed(3)}`;
                             }
                         }
                     }
@@ -572,82 +571,6 @@
                 console.error("Phone: Error creating or sending offer:", error);
                 statusTextElement.textContent = `Error setting up WebRTC: ${error.message}`;
                 showMessageBox(`Error setting up WebRTC: ${error.message}`);
-            }
-        }
-
-        // --- Hexapod Command Application Logic ---
-        function applyHexapodCommand(cmd) {
-            if (!robotModel) {
-                console.warn("Robot model not loaded yet for command:", cmd);
-                return;
-            }
-
-            const rotationAmount = 0.1;
-            const liftAmount = 0.1;
-            const moveAmount = 0.5;
-
-            const getJointValue = (jointName) => {
-                const joint = robotModel.joints[jointName];
-                return joint ? (joint.angle || 0) : 0;
-            };
-
-            // This logic is directly from PhoneCam.jsx's useEffect
-            if (cmd === 'left') {
-                ['coxa_joint_r1', 'coxa_joint_r2', 'coxa_joint_r3'].forEach(jointName => {
-                    const joint = robotModel.joints[jointName];
-                    if (joint) { joint.setJointValue(getJointValue(jointName) + rotationAmount); }
-                });
-                ['coxa_joint_l1', 'coxa_joint_l2', 'coxa_joint_l3'].forEach(jointName => {
-                    const joint = robotModel.joints[jointName];
-                    if (joint) { joint.setJointValue(getJointValue(jointName) - rotationAmount); }
-                });
-                console.log("Hexapod: Attempting 'left' turn.");
-            } else if (cmd === 'right') {
-                ['coxa_joint_r1', 'coxa_joint_r2', 'coxa_joint_r3'].forEach(jointName => {
-                    const joint = robotModel.joints[jointName];
-                    if (joint) { joint.setJointValue(getJointValue(jointName) - rotationAmount); }
-                });
-                ['coxa_joint_l1', 'coxa_joint_l2', 'coxa_joint_l3'].forEach(jointName => {
-                    const joint = robotModel.joints[jointName];
-                    if (joint) { joint.setJointValue(getJointValue(jointName) + rotationAmount); }
-                });
-                console.log("Hexapod: Attempting 'right' turn.");
-            } else if (cmd === 'jump') {
-                const allFemurJoints = [
-                    'femur_joint_r1', 'femur_joint_r2', 'femur_joint_r3',
-                    'femur_joint_l1', 'femur_joint_l2', 'femur_joint_l3'
-                ];
-                allFemurJoints.forEach(jointName => {
-                    const joint = robotModel.joints[jointName];
-                    if (joint) { joint.setJointValue(getJointValue(jointName) - liftAmount); }
-                });
-                setTimeout(() => {
-                    allFemurJoints.forEach(jointName => {
-                        const joint = robotModel.joints[jointName];
-                        if (joint) { joint.setJointValue(getJointValue(jointName) + liftAmount); }
-                    });
-                }, 300);
-                console.log("Hexapod: Attempting 'jump'.");
-            } else if (cmd === 'forward') {
-                robotModel.position.z -= moveAmount;
-                console.log("Hexapod: Moving forward. New Z:", robotModel.position.z);
-            } else if (cmd === 'backward') {
-                robotModel.position.z += moveAmount;
-                console.log("Hexapod: Moving backward. New Z:", robotModel.position.z);
-            } else if (cmd === 'up') {
-                robotModel.position.y += moveAmount;
-                console.log("Hexapod: Moving up. New Y:", robotModel.position.y);
-            } else if (cmd === 'down') {
-                robotModel.position.y -= moveAmount;
-                console.log("Hexapod: Moving down. New Y:", robotModel.position.y);
-            }
-
-            // Update on-screen joint angle displays after movement
-            for (const jointName in robotModel.joints) {
-                const joint = robotModel.joints[jointName];
-                if (joint.jointType !== 'fixed' && jointDisplays[jointName]) {
-                    jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${joint.jointValue.toFixed(2)}`;
-                }
             }
         }
 
