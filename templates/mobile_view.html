@@ -148,7 +148,9 @@
     <!-- Three.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- OrbitControls for mobile interaction -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/controls/OrbitControls.js"></script>
+    <!-- The OrbitControls script needs to be loaded AFTER three.min.js -->
+    <!-- Using a CDN path known to attach OrbitControls to the global THREE object -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- three-urdf-loader for loading URDF models -->
     <script src="https://unpkg.com/three-urdf-loader@0.0.12/dist/URDFLoader.js"></script>
     <!-- Socket.IO Client Library -->
@@ -200,8 +202,9 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('robot-viewer').appendChild(renderer.domElement);
 
-            // OrbitControls
-            controls = new OrbitControls(camera, renderer.domElement);
+            // OrbitControls - The fix: Access OrbitControls from the global THREE object
+            // The OrbitControls.js script typically adds OrbitControls to THREE.
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.25;
             controls.screenSpacePanning = false;
@@ -223,7 +226,7 @@
             scene.add(plane);
 
             // URDF Loader
-            const loader = new URDFLoader();
+            const loader = new URDFLoader(); // Assuming URDFLoader is globally available after script inclusion
             loader.load('./robots/robot_arg85_description.URDF', result => {
                 robotModel = result;
                 scene.add(robotModel);
@@ -245,7 +248,7 @@
             // Error callback
             err => {
                 console.error('Error loading URDF:', err);
-                showMessageBox('Failed to load robot model. Check URDF path and mesh files.');
+                showMessageBox('Failed to load robot model. Check URDF path and mesh files and server.');
                 document.getElementById('loading-spinner').style.display = 'none';
             });
 
@@ -271,8 +274,6 @@
 
             socket.on('connect', () => {
                 console.log('Mobile View: Connected to Flask SocketIO. Socket ID:', socket.id);
-                // Inform backend that this is a mobile client and ready for camera commands
-                // This might not be strictly needed if backend just broadcasts, but good for clarity
                 socket.emit('mobile_client_ready');
             });
 
