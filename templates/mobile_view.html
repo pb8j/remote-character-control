@@ -3,6 +3,8 @@
 <head>
     <title>Mobile Robot View</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -13,6 +15,8 @@
             flex-direction: column;
             height: 100vh;
             color: #333;
+            padding: 10px; /* Some padding for mobile layout */
+            box-sizing: border-box; /* Include padding in element's total width/height */
         }
 
         h1 {
@@ -23,85 +27,110 @@
             background-color: #ffffff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             font-size: 1.5em;
+            border-radius: 10px; /* Rounded corners for header */
+            margin-bottom: 10px;
         }
 
-        #robot-viewer {
-            flex-grow: 1; /* Take up available space */
-            background-color: #e3f2fd; /* Lighter blue for 3D viewer */
-            position: relative; /* For absolute positioning of overlay text */
+        .container {
+            flex-grow: 1;
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            background: linear-gradient(145deg, #f0f0f0, #ffffff);
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            text-align: center;
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
+            gap: 15px;
         }
 
-        canvas {
+        .status-text {
+            font-size: 1em; /* Adjusted font size */
+            color: #555;
+            margin-bottom: 8px; /* Reduced margin */
+        }
+        .status-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .device-id-text {
+            font-size: 0.9em; /* Adjusted font size */
+            color: #777;
+            margin-bottom: 20px; /* Reduced margin */
+            word-break: break-all; /* Ensure long device IDs wrap on small screens */
+        }
+        .device-id-value {
+            color: #34495e;
+        }
+
+        .mode-toggle-container {
+            margin-bottom: 20px; /* Reduced margin */
+            display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+            justify-content: center;
+            gap: 10px; /* Reduced gap between buttons */
+        }
+
+        .mode-button {
+            padding: 10px 20px; /* Reduced padding */
+            border: 2px solid #007bff;
+            border-radius: 25px; /* Slightly smaller border-radius */
+            background-color: #ffffff;
+            color: #007bff;
+            cursor: pointer;
+            font-size: 0.9em; /* Adjusted font size */
+            font-weight: 600;
+            transition: all 0.3s ease;
+            outline: none;
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+            flex-grow: 1; /* Allow buttons to grow and fill space */
+            max-width: calc(50% - 10px); /* Limit width for two columns on wider mobile screens */
+        }
+        .mode-button-active {
+            background-color: #007bff;
+            color: white;
+            border-color: #0056b3;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+        }
+
+        .video-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%; /* Make video container fill parent width */
+            height: auto; /* Allow height to adjust */
+            aspect-ratio: 16 / 9; /* Maintain a 16:9 aspect ratio for the video container */
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+        .video-stream {
+            width: 100%;
+            height: 100%; /* Make video fill its container */
             display: block;
-            width: 100% !important; /* Ensure canvas fills container */
-            height: 100% !important; /* Ensure canvas fills container */
+            object-fit: cover; /* Cover the container while maintaining aspect ratio */
+        }
+
+        .urdf-container {
+            width: 100%; /* Make URDF container fill parent width */
+            height: 300px; /* Fixed height for URDF container, you might adjust this */
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin: 0 auto;
+            overflow: hidden;
+            background-color: #f5f5f5;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            position: relative; /* For spinner and overlay */
+        }
+        .urdf-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
             object-fit: contain;
         }
 
-        #camera-status {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
-            color: #333;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-
-        #joint-angles-display {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 0.85em;
-            max-height: 30%; /* Limit height if many joints */
-            overflow-y: auto;
-            pointer-events: none; /* Allows interaction with canvas below */
-            z-index: 10;
-        }
-        #joint-angles-display div {
-            margin-bottom: 4px;
-        }
-
-        #message-box {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            text-align: center;
-            min-width: 250px;
-        }
-        #message-box button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 15px;
-            font-size: 1em;
-            transition: background-color 0.3s ease;
-        }
-        #message-box button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Basic spinner for loading */
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             width: 36px;
@@ -120,61 +149,141 @@
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
+
+        #joint-angles-display {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.8em;
+            max-height: 25%; /* Limit height if many joints */
+            overflow-y: auto;
+            pointer-events: none; /* Allows interaction with canvas below */
+            z-index: 10;
+            text-align: left;
+        }
+        #joint-angles-display div {
+            margin-bottom: 2px;
+        }
+
+        /* Custom Message Box Styles */
+        .message-box {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+            min-width: 250px;
+            max-width: 90%;
+        }
+        .message-box button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .message-box button:hover {
+            background-color: #0056b3;
+        }
+
+
+        @media (max-width: 480px) {
+            .mode-button {
+                max-width: 100%; /* Stack buttons on top of each other on very small screens */
+            }
+            .urdf-container {
+                height: 250px; /* Reduce height for very small screens */
+            }
+        }
     </style>
 </head>
 <body>
     <h1>Mobile Robot View</h1>
 
-    <div id="robot-viewer">
-        <div id="camera-status">Camera: <span id="camera-state">Not Active</span></div>
-        <div id="joint-angles-display">
-            <strong>Joint Angles:</strong>
-            <div id="joint-shoulder_yaw">Shoulder Yaw: 0.00</div>
-            <div id="joint-shoulder_pitch">Shoulder Pitch: 0.00</div>
-            <div id="joint-elbow_pitch">Elbow Pitch: 0.00</div>
-            <div id="joint-wrist_pitch">Wrist Pitch: 0.00</div>
-            <div id="joint-wrist_roll">Wrist Roll: 0.00</div>
-            <div id="joint-finger_joint">Finger Grasp: 0.00</div>
-            <div id="joint-finger_joint_2">Finger Grasp 2: 0.00</div>
+    <div class="container">
+        <p class="status-text">Status: <span id="status-text" class="status-value">Connecting to server...</span></p>
+        <p class="device-id-text">Your Device ID: <strong id="phone-device-id" class="device-id-value">Generating...</strong></p>
+
+        <div class="mode-toggle-container">
+            <button id="video-mode-button" class="mode-button mode-button-active">Show Camera Feed</button>
+            <button id="urdf-mode-button" class="mode-button">Show URDF Robot</button>
         </div>
-        <div class="spinner" id="loading-spinner"></div>
+
+        <!-- Video Container -->
+        <div id="video-display-area" class="video-container">
+            <video id="local-video" class="video-stream" autoplay playsinline muted></video>
+        </div>
+
+        <!-- URDF Container -->
+        <div id="urdf-display-area" class="urdf-container hidden">
+            <div id="urdf-canvas-container" style="width: 100%; height: 100%;"></div>
+            <div id="loading-spinner" class="spinner"></div>
+            <div id="joint-angles-display">
+                <strong>Joint Angles:</strong>
+                <!-- Joint angles will be dynamically added here -->
+            </div>
+        </div>
     </div>
 
-    <div id="message-box">
+    <!-- Custom Message Box -->
+    <div id="message-box" class="message-box">
         <p id="message-text"></p>
         <button onclick="hideMessageBox()">OK</button>
     </div>
 
-    <!-- Three.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- OrbitControls for mobile interaction -->
-    <!-- The OrbitControls script needs to be loaded AFTER three.min.js -->
-    <!-- Using a CDN path known to attach OrbitControls to the global THREE object -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- three-urdf-loader for loading URDF models -->
-    <script src="https://unpkg.com/three-urdf-loader@0.0.12/dist/URDFLoader.js"></script>
-    <!-- Socket.IO Client Library -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three-urdf-loader@0.0.12/dist/URDFLoader.js"></script>
 
     <script>
         // --- Configuration ---
-        // IMPORTANT: Replace with your actual deployed backend URL (e.g., from Render)
-        const FLASK_APP_URL = 'https://remote-character-control.onrender.com';
-        const VIDEO_WIDTH = 320; // Width for camera frames
-        const VIDEO_HEIGHT = 240; // Height for camera frames
-        const FPS = 10; // Frames per second for camera streaming
+        const FLASK_APP_URL = "https://remote-character-control.onrender.com";
+        const PHONE_DEVICE_ID = `phone-${Math.random().toString(36).substring(2, 9)}`; // Unique ID for this phone instance
+        const ROBOT_URDF_PATH = "./hexapod_robot/crab_model.urdf"; // Path relative to Flask static
+        const ROBOT_PACKAGE_PATH = "./hexapod_robot/"; // Path for meshes relative to Flask static
 
         // --- Global Variables ---
         let socket;
-        let videoStream;
-        let videoInterval;
-        let cameraActive = false; // State to track if camera is actively sending frames
-        let cameraStateElement = document.getElementById('camera-state');
+        let localStream; // Camera and microphone stream
+        let peerConnection; // WebRTC Peer Connection
+        let displayMode = 'video'; // 'video' or 'urdf'
 
-        // Three.js variables
+        // Three.js for URDF Visualization
         let scene, camera, renderer, controls;
-        let robotModel; // This will hold your loaded URDF model
-        const jointDisplays = {}; // To update joint angle text dynamically
+        let robotModel; // The loaded Hexapod URDF model
+        const jointDisplays = {}; // To update joint angle text dynamically on screen
+
+        // Elements
+        const statusTextElement = document.getElementById('status-text');
+        const phoneDeviceIdElement = document.getElementById('phone-device-id');
+        const localVideoElement = document.getElementById('local-video');
+        const videoDisplayArea = document.getElementById('video-display-area');
+        const urdfDisplayArea = document.getElementById('urdf-display-area');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const jointAnglesDisplay = document.getElementById('joint-angles-display');
+
+        // Initial joint states for local URDF
+        let localJointStates = {
+            cmd: '', // For movement commands like 'left', 'right', 'jump'
+            timestamp: Date.now() // To force useEffect-like updates
+        };
+
 
         // --- Custom Message Box Functions (replaces alert/confirm) ---
         function showMessageBox(message) {
@@ -186,129 +295,179 @@
             document.getElementById('message-box').style.display = 'none';
         }
 
-        // --- Three.js Initialization and Robot Loading ---
+        // --- Three.js Initialization for Hexapod URDF ---
         function initThreeJS() {
             // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xe3f2fd); // Light blue background
+            scene.background = new THREE.Color(0xe3f2fd); // Lighter blue for 3D viewer
 
             // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 50), 0.1, 1000); // Adjust aspect ratio for header
-            camera.position.set(2, 2, 2);
+            camera = new THREE.PerspectiveCamera(75, urdfDisplayArea.offsetWidth / urdfDisplayArea.offsetHeight, 0.1, 2000);
+            camera.position.set(10, 10, 10); // Initial position for the hexapod
 
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight - 50); // Adjust size for header
+            renderer.setSize(urdfDisplayArea.offsetWidth, urdfDisplayArea.offsetHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            document.getElementById('robot-viewer').appendChild(renderer.domElement);
+            document.getElementById('urdf-canvas-container').appendChild(renderer.domElement);
 
-            // OrbitControls - The fix: Access OrbitControls from the global THREE object
-            // The OrbitControls.js script typically adds OrbitControls to THREE.
+            // OrbitControls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.25;
             controls.screenSpacePanning = false;
-            controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+            controls.maxPolarAngle = Math.PI / 2;
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0x404040, 2); // Increased intensity
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(1, 1, 1).normalize();
+            directionalLight.position.set(2, 5, 2).normalize();
             scene.add(directionalLight);
-
-            // Ground Plane
-            const planeGeometry = new THREE.PlaneGeometry(10, 10);
-            const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-            plane.rotation.x = Math.PI / 2;
-            plane.position.y = -0.5;
-            scene.add(plane);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight2.position.set(-2, -5, -2).normalize();
+            scene.add(directionalLight2);
 
             // URDF Loader
-            const loader = new URDFLoader(); // Assuming URDFLoader is globally available after script inclusion
-            loader.load('./robots/robot_arg85_description.URDF', result => {
+            const loader = new THREE.URDFLoader();
+            loader.packages = {
+                'hexapod_robot': ROBOT_PACKAGE_PATH
+            };
+            loader.workingPath = ROBOT_PACKAGE_PATH;
+
+            loadingSpinner.style.display = 'block'; // Show spinner
+
+            loader.load(ROBOT_URDF_PATH, result => {
                 robotModel = result;
                 scene.add(robotModel);
-                console.log('Robot model loaded:', robotModel);
+                console.log('Mobile View: Hexapod Robot Loaded:', robotModel);
 
-                // Initialize joint display elements
+                const scaleFactor = 10;
+                robotModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                robotModel.position.set(0, -2.0 * scaleFactor, 0); // Adjust vertical offset
+
+                // Adjust camera to view the loaded robot
+                const box = new THREE.Box3().setFromObject(robotModel);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                cameraZ *= 1.5; // Adjust camera distance for better view
+
+                camera.position.set(center.x, center.y + size.y / 2, cameraZ + center.z);
+                camera.lookAt(center);
+
+                controls.target.copy(center);
+                controls.update();
+
+                camera.far = cameraZ * 2;
+                camera.near = 0.01;
+                camera.updateProjectionMatrix();
+
+                console.log("Mobile View: Camera adjusted to center:", center, "and position:", camera.position);
+
+                loadingSpinner.style.display = 'none'; // Hide spinner
+
+                // Populate joint displays
+                jointAnglesDisplay.innerHTML = '<strong>Joint Angles:</strong>';
                 for (const jointName in robotModel.joints) {
-                    const displayDiv = document.getElementById(`joint-${jointName}`);
-                    if (displayDiv) {
-                        jointDisplays[jointName] = displayDiv;
+                    const joint = robotModel.joints[jointName];
+                    if (joint.jointType !== 'fixed') { // Only display non-fixed joints
+                        const div = document.createElement('div');
+                        div.id = `joint-${jointName}`;
+                        div.textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${joint.jointValue.toFixed(2)}`;
+                        jointAnglesDisplay.appendChild(div);
+                        jointDisplays[jointName] = div;
                     }
                 }
-                document.getElementById('loading-spinner').style.display = 'none'; // Hide spinner
+
             },
-            // Progress callback
-            xhr => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-            },
-            // Error callback
-            err => {
-                console.error('Error loading URDF:', err);
-                showMessageBox('Failed to load robot model. Check URDF path and mesh files and server.');
-                document.getElementById('loading-spinner').style.display = 'none';
+            xhr => { console.log(`URDF loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`); },
+            error => {
+                console.error('Mobile View: Error loading URDF:', error);
+                showMessageBox('Failed to load hexapod robot model. Check URDF path and mesh files and server.');
+                loadingSpinner.style.display = 'none';
             });
 
             // Animation loop
             const animate = () => {
                 requestAnimationFrame(animate);
-                controls.update(); // Only required if controls.enableDamping or controls.autoRotate are set to true
+                controls.update();
                 renderer.render(scene, camera);
+                // Apply hexapod movement commands if in URDF mode
+                if (displayMode === 'urdf' && robotModel && localJointStates.cmd) {
+                    applyHexapodCommand(localJointStates.cmd);
+                    localJointStates.cmd = ''; // Clear command after applying
+                }
             };
             animate();
 
             // Handle window resize
             window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / (window.innerHeight - 50);
+                camera.aspect = urdfDisplayArea.offsetWidth / urdfDisplayArea.offsetHeight;
                 camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight - 50);
+                renderer.setSize(urdfDisplayArea.offsetWidth, urdfDisplayArea.offsetHeight);
             });
         }
 
-        // --- WebSocket Communication ---
-        function setupWebSocket() {
+        // --- WebRTC and Socket.IO Setup ---
+        async function setupWebRTCAndSocket() {
+            phoneDeviceIdElement.textContent = PHONE_DEVICE_ID;
+
             socket = io(FLASK_APP_URL);
 
-            socket.on('connect', () => {
-                console.log('Mobile View: Connected to Flask SocketIO. Socket ID:', socket.id);
-                socket.emit('mobile_client_ready');
+            socket.on("connect", () => {
+                statusTextElement.textContent = "Connected to server. Registering phone...";
+                socket.emit("register_phone", PHONE_DEVICE_ID);
             });
 
-            socket.on('disconnect', (reason) => {
-                console.log('Mobile View: Disconnected from Flask SocketIO. Reason:', reason);
-                stopCameraStream();
-                cameraStateElement.textContent = 'Disconnected';
+            socket.on("connect_error", (err) => {
+                console.error("Socket.IO Connect Error:", err);
+                statusTextElement.textContent = `Connection Error: ${err.message}`;
+                showMessageBox(`Connection Error: ${err.message}. Please check backend.`);
             });
 
-            socket.on('connect_error', (err) => {
-                console.error('Mobile View: Socket.IO Connection Error:', err.message, err.description);
-                showMessageBox('Failed to connect to backend. Please ensure the server is running.');
-                cameraStateElement.textContent = 'Connection Error';
+            socket.on("start_webrtc_offer", async ({ requestingLaptopSocketId }) => {
+                statusTextElement.textContent = "Laptop requested stream. Setting up WebRTC...";
+                await setupPeerConnection(requestingLaptopSocketId);
             });
 
-            // Listen for commands from control panel to start/stop camera
-            socket.on('start_camera', () => {
-                console.log('Mobile View: Received start_camera command.');
-                startCameraStream();
+            socket.on("sdp_answer_from_laptop", async (sdpAnswer) => {
+                statusTextElement.textContent = "Received SDP Answer. Establishing connection...";
+                if (peerConnection && peerConnection.remoteDescription === null) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(sdpAnswer));
+                    console.log("Phone: Remote description set (Answer).");
+                }
             });
 
-            socket.on('stop_camera', () => {
-                console.log('Mobile View: Received stop_camera command.');
-                stopCameraStream();
+            socket.on("ice_candidate_from_laptop", async (candidate) => {
+                if (peerConnection && candidate) {
+                    try {
+                        await peerConnection.addIceCandidate(candidate);
+                        console.log("Phone: Added remote ICE candidate.");
+                    } catch (e) {
+                        console.error("Phone: Error adding remote ICE candidate:", e);
+                    }
+                }
             });
 
-            // Listen for joint angle updates from the control panel
+            // Listener for general control commands (e.g., for hexapod movement)
+            socket.on("control", (cmd) => {
+                console.log(`Phone: Command received: ${cmd}`);
+                if (displayMode === 'urdf') {
+                    // Update local joint states with command to trigger URDF animation
+                    localJointStates = { cmd: cmd, timestamp: Date.now() };
+                }
+            });
+
+            // Listener for specific joint angle updates (e.g., from gripper control on laptop)
             socket.on('joint_angle_updated', (data) => {
                 const { joint_name, angle } = data;
                 console.log(`Mobile View: Received joint update for ${joint_name}: ${angle} radians`);
                 if (robotModel && robotModel.joints[joint_name]) {
-                    // Update the 3D model's joint
                     robotModel.joints[joint_name].setJointValue(angle);
-
-                    // Update the on-screen display
                     if (jointDisplays[joint_name]) {
                         jointDisplays[joint_name].textContent = `${joint_name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${angle.toFixed(2)}`;
                     }
@@ -316,84 +475,205 @@
             });
 
             // Receive initial joint states on connect
-            socket.on('initial_joint_states', (jointStates) => {
-                console.log('Mobile View: Received initial joint states:', jointStates);
+            socket.on('initial_joint_states', (initialStates) => {
+                console.log('Mobile View: Received initial joint states:', initialStates);
                 if (robotModel) {
-                    for (const jointName in jointStates) {
+                    for (const jointName in initialStates) {
                         if (robotModel.joints[jointName]) {
-                            robotModel.joints[jointName].setJointValue(jointStates[jointName]);
+                            robotModel.joints[jointName].setJointValue(initialStates[jointName]);
                             if (jointDisplays[jointName]) {
-                                jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${jointStates[jointName].toFixed(2)}`;
+                                jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${initialStates[jointName].toFixed(2)}`;
                             }
                         }
                     }
                 }
             });
+
+            socket.on("disconnect", () => {
+                statusTextElement.textContent = "Disconnected from server.";
+                console.log("Phone: Disconnected from server.");
+                stopLocalStream();
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+            });
+
+            // Get local camera stream on initialization
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                if (localVideoElement) {
+                    localVideoElement.srcObject = localStream;
+                }
+            } catch (err) {
+                statusTextElement.textContent = `Camera access denied or unavailable: ${err.message}`;
+                console.error("Camera error:", err);
+                showMessageBox("Camera access denied or unavailable. Please allow camera permissions.");
+            }
         }
 
-        // --- Camera Streaming Functions ---
-        async function startCameraStream() {
-            if (cameraActive) {
-                console.log("Camera stream already active.");
+        function stopLocalStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (localVideoElement) {
+                localVideoElement.srcObject = null;
+            }
+        }
+
+        async function setupPeerConnection(requestingLaptopSocketId) {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+            });
+            peerConnection = pc;
+
+            pc.oniceconnectionstatechange = () => {
+                console.log('Phone ICE connection state:', pc.iceConnectionState);
+                statusTextElement.textContent = `ICE State: ${pc.iceConnectionState}`;
+            };
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                console.log("Phone: Local stream added to PeerConnection.");
+            } else {
+                console.error("Phone: No local stream found to add to PeerConnection.");
+                statusTextElement.textContent = "Error: No local stream to start WebRTC.";
+                showMessageBox("Error: Could not access local camera stream to start WebRTC. Check permissions.");
                 return;
             }
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log("Phone: Sending ICE candidate to laptop.");
+                    socket.emit("ice_candidate_from_phone", {
+                        candidate: event.candidate,
+                        phoneDeviceId: PHONE_DEVICE_ID,
+                        requestingLaptopSocketId: requestingLaptopSocketId
+                    });
+                }
+            };
 
             try {
-                // Request camera access
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const videoElement = document.createElement('video'); // Create a hidden video element
-                videoElement.srcObject = videoStream;
-                videoElement.play();
-
-                // Create a canvas to draw video frames
-                const canvas = document.createElement('canvas');
-                canvas.width = VIDEO_WIDTH;
-                canvas.height = VIDEO_HEIGHT;
-                const context = canvas.getContext('2d');
-
-                // Start sending frames
-                videoInterval = setInterval(() => {
-                    if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
-                        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Adjust quality as needed
-                        const base64Data = dataUrl.split(',')[1]; // Get base64 part
-                        socket.emit('mobile_camera_frame', { frame: base64Data });
-                        // console.log("Sent camera frame."); // Log only if debugging frame rate
-                    }
-                }, 1000 / FPS); // Send frames at defined FPS
-
-                cameraActive = true;
-                cameraStateElement.textContent = 'Active';
-                showMessageBox('Camera streaming started successfully!');
-                console.log('Mobile View: Camera streaming started.');
-
-            } catch (err) {
-                console.error('Mobile View: Error accessing camera:', err);
-                showMessageBox(`Failed to start camera: ${err.message || 'Permission denied'}`);
-                cameraStateElement.textContent = 'Error';
-                cameraActive = false;
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log("Phone: Sending SDP Offer to laptop.");
+                socket.emit("sdp_offer_from_phone", {
+                    sdpOffer: offer,
+                    phoneDeviceId: PHONE_DEVICE_ID,
+                    requestingLaptopSocketId: requestingLaptopSocketId
+                });
+                statusTextElement.textContent = "Offer sent. Waiting for answer...";
+            } catch (error) {
+                console.error("Phone: Error creating or sending offer:", error);
+                statusTextElement.textContent = `Error setting up WebRTC: ${error.message}`;
+                showMessageBox(`Error setting up WebRTC: ${error.message}`);
             }
         }
 
-        function stopCameraStream() {
-            if (!cameraActive) {
-                console.log("No camera stream to stop.");
+        // --- Hexapod Command Application Logic ---
+        function applyHexapodCommand(cmd) {
+            if (!robotModel) {
+                console.warn("Robot model not loaded yet for command:", cmd);
                 return;
             }
-            clearInterval(videoInterval);
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop()); // Stop all tracks
+
+            const rotationAmount = 0.1;
+            const liftAmount = 0.1;
+            const moveAmount = 0.5;
+
+            const getJointValue = (jointName) => {
+                const joint = robotModel.joints[jointName];
+                return joint ? (joint.angle || 0) : 0;
+            };
+
+            // This logic is directly from PhoneCam.jsx's useEffect
+            if (cmd === 'left') {
+                ['coxa_joint_r1', 'coxa_joint_r2', 'coxa_joint_r3'].forEach(jointName => {
+                    const joint = robotModel.joints[jointName];
+                    if (joint) { joint.setJointValue(getJointValue(jointName) + rotationAmount); }
+                });
+                ['coxa_joint_l1', 'coxa_joint_l2', 'coxa_joint_l3'].forEach(jointName => {
+                    const joint = robotModel.joints[jointName];
+                    if (joint) { joint.setJointValue(getJointValue(jointName) - rotationAmount); }
+                });
+                console.log("Hexapod: Attempting 'left' turn.");
+            } else if (cmd === 'right') {
+                ['coxa_joint_r1', 'coxa_joint_r2', 'coxa_joint_r3'].forEach(jointName => {
+                    const joint = robotModel.joints[jointName];
+                    if (joint) { joint.setJointValue(getJointValue(jointName) - rotationAmount); }
+                });
+                ['coxa_joint_l1', 'coxa_joint_l2', 'coxa_joint_l3'].forEach(jointName => {
+                    const joint = robotModel.joints[jointName];
+                    if (joint) { joint.setJointValue(getJointValue(jointName) + rotationAmount); }
+                });
+                console.log("Hexapod: Attempting 'right' turn.");
+            } else if (cmd === 'jump') {
+                const allFemurJoints = [
+                    'femur_joint_r1', 'femur_joint_r2', 'femur_joint_r3',
+                    'femur_joint_l1', 'femur_joint_l2', 'femur_joint_l3'
+                ];
+                allFemurJoints.forEach(jointName => {
+                    const joint = robotModel.joints[jointName];
+                    if (joint) { joint.setJointValue(getJointValue(jointName) - liftAmount); }
+                });
+                setTimeout(() => {
+                    allFemurJoints.forEach(jointName => {
+                        const joint = robotModel.joints[jointName];
+                        if (joint) { joint.setJointValue(getJointValue(jointName) + liftAmount); }
+                    });
+                }, 300);
+                console.log("Hexapod: Attempting 'jump'.");
+            } else if (cmd === 'forward') {
+                robotModel.position.z -= moveAmount;
+                console.log("Hexapod: Moving forward. New Z:", robotModel.position.z);
+            } else if (cmd === 'backward') {
+                robotModel.position.z += moveAmount;
+                console.log("Hexapod: Moving backward. New Z:", robotModel.position.z);
+            } else if (cmd === 'up') {
+                robotModel.position.y += moveAmount;
+                console.log("Hexapod: Moving up. New Y:", robotModel.position.y);
+            } else if (cmd === 'down') {
+                robotModel.position.y -= moveAmount;
+                console.log("Hexapod: Moving down. New Y:", robotModel.position.y);
             }
-            cameraActive = false;
-            cameraStateElement.textContent = 'Not Active';
-            showMessageBox('Camera streaming stopped.');
-            console.log('Mobile View: Camera streaming stopped.');
+
+            // Update on-screen joint angle displays after movement
+            for (const jointName in robotModel.joints) {
+                const joint = robotModel.joints[jointName];
+                if (joint.jointType !== 'fixed' && jointDisplays[jointName]) {
+                    jointDisplays[jointName].textContent = `${jointName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}: ${joint.jointValue.toFixed(2)}`;
+                }
+            }
         }
 
-        // --- Initialize on Window Load ---
+
+        // --- UI Event Listeners ---
+        document.getElementById('video-mode-button').addEventListener('click', () => {
+            displayMode = 'video';
+            videoDisplayArea.classList.remove('hidden');
+            urdfDisplayArea.classList.add('hidden');
+            document.getElementById('video-mode-button').classList.add('mode-button-active');
+            document.getElementById('urdf-mode-button').classList.remove('mode-button-active');
+        });
+
+        document.getElementById('urdf-mode-button').addEventListener('click', () => {
+            displayMode = 'urdf';
+            videoDisplayArea.classList.add('hidden');
+            urdfDisplayArea.classList.remove('hidden');
+            document.getElementById('urdf-mode-button').classList.add('mode-button-active');
+            document.getElementById('video-mode-button').classList.remove('mode-button-active');
+        });
+
+
+        // --- Initialization on Window Load ---
         window.onload = function() {
             initThreeJS();
-            setupWebSocket();
+            setupWebRTCAndSocket();
         };
 
     </script>

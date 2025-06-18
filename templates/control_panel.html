@@ -2,380 +2,723 @@
 <html>
 <head>
     <title>Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f0f0; }
-        h1 { color: #333; }
-        #controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease, transform 0.1s ease; }
-        button:active { transform: translateY(1px); } /* Button press effect */
-
-        #leftBtn, #rightBtn, #jumpBtn { background: #007bff; color: white; }
-        #leftBtn:hover, #rightBtn:hover, #jumpBtn:hover { background: #0056b3; }
-
-        #cameraToggle { background: #dc3545; color: white; } /* Red for Start */
-        #cameraToggle.active { background: #28a745; } /* Green for Stop */
-        #cameraToggle:hover { background: #c82333; }
-        #cameraToggle.active:hover { background: #218838; }
-
-        #cameraFeed {
-            width: 320px;
-            height: 240px;
-            border: 2px solid #ccc;
-            display: none; /* Initially hidden */
-            margin-top: 20px;
-            background-color: #eee; /* Placeholder background */
-            object-fit: contain; /* Ensure entire image is visible, no cropping */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        /* Login Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 30px; width: 350px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; }
-        .close { float: right; font-size: 24px; cursor: pointer; position: absolute; top: 10px; right: 15px; color: #888; }
-        .close:hover { color: #333; }
-        .modal-content h2 { text-align: center; margin-bottom: 25px; color: #333; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        .form-group input { width: calc(100% - 16px); padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
-        #loginBtn { background-color: #28a745; color: white; padding: 12px; font-size: 18px; width: 100%; margin-top: 20px; }
-        #loginBtn:hover { background-color: #218838; }
-        #loginError { color: red; margin-top: 15px; text-align: center; font-weight: bold; }
-
-        /* Joint Controls Styling */
-        #joint-controls {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-        }
-        .joint-group {
-            margin-bottom: 15px;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        /* Custom styles for components */
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e6e6e6;
+            text-align: center;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            gap: 20px;
+            max-width: 700px; /* Max width for larger screens */
+            width: 100%; /* Full width on smaller screens */
+            padding: 25px;
         }
-        .joint-group label {
-            font-weight: bold;
-            margin-bottom: 8px;
+
+        .header {
+            color: #2c3e50;
+            font-size: 2.2em;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            display: inline-block;
+            width: auto;
+            font-weight: 700;
+        }
+
+        .status-box {
+            font-size: 1em;
+            color: #555;
+            background-color: #e7f3ff;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+            margin-bottom: 15px;
+        }
+
+        .dropdown-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .label {
+            font-size: 1em;
             color: #333;
-            width: 100%;
+            font-weight: bold;
         }
-        .joint-group input[type="range"] {
-            width: 90%; /* Adjust width for slider */
-            -webkit-appearance: none; /* Override default look */
-            appearance: none;
-            height: 8px;
-            background: #d3d3d3;
+
+        .select-style {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #a0a0a0;
+            background-color: #f9f9f9;
+            font-size: 0.95em;
+            cursor: pointer;
             outline: none;
-            opacity: 0.7;
-            -webkit-transition: .2s;
-            transition: opacity .2s;
-            border-radius: 5px;
-            margin-top: 5px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+            appearance: none; /* Remove default arrow */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%20197.8c-3.6%203.6-7.8%205.4-12.8%205.4H18.2c-5%200-9.2-1.8-12.8-5.4-3.6-3.6-5.4-7.8-5.4-12.8s1.8-9.2%205.4-12.8L133.2%2017c3.6-3.6%207.8-5.4%2012.8-5.4s9.2%201.8%2012.8%205.4l127.8%20127.8c3.6%203.6%205.4%207.8%205.4%2012.8s-1.8%209.2-5.4%2012.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 12px;
+            padding-right: 30px; /* Space for the custom arrow */
         }
-        .joint-group input[type="range"]::-webkit-slider-thumb {
+
+        .camera-feed-container {
+            border: 1px solid #d3d3d3;
+            border-radius: 10px;
+            padding: 15px;
+            background-color: #fcfcfc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .video-feed-style {
+            width: 100%;
+            max-width: 640px; /* Max width for consistent look */
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin: 10px auto;
+            display: block;
+            background-color: #000; /* Black background for video area */
+        }
+
+        .toggle-camera-button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 4px 10px rgba(40,167,69,0.2);
+        }
+        .toggle-camera-button:hover {
+            background-color: #218838;
+            transform: translateY(-1px);
+        }
+
+        .robot-control-section {
+            border: 1px solid #d3d3d3;
+            border-radius: 10px;
+            padding: 15px;
+            background-color: #fcfcfc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .joint-slider-group {
+            margin-bottom: 15px;
+        }
+
+        .joint-label {
+            font-size: 1.05em;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .joint-slider {
+            width: 90%;
+            height: 8px;
+            background: #ddd;
+            outline: none;
+            border-radius: 5px;
+            appearance: none;
+            cursor: pointer;
+        }
+        .joint-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 20px;
             height: 20px;
             background: #007bff;
-            cursor: pointer;
             border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            border: 3px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s, box-shadow 0.2s;
         }
-        .joint-group input[type="range"]::-moz-range-thumb {
+        .joint-slider::-moz-range-thumb {
             width: 20px;
             height: 20px;
             background: #007bff;
-            cursor: pointer;
             border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            border: 3px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s, box-shadow 0.2s;
         }
-        .joint-value {
-            font-size: 0.9em;
-            color: #555;
-            margin-top: 5px;
+
+        .gripper-note {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .urdf-container {
             width: 100%;
-            text-align: right;
-            padding-right: 10px;
+            height: 350px; /* Increased height for better gripper view */
+            border: 1px solid #d3d3d3;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #f5f5f5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+
+        .viewer-note {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .no-phone-message {
+            color: #777;
+            font-size: 1em;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* Custom Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+        }
+        .modal-button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .modal-button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <h1>Character Control Panel</h1>
 
-    <div id="controls">
-        <button id="leftBtn">Left</button>
-        <button id="jumpBtn">Jump</button>
-        <button id="rightBtn">Right</button>
-        <button id="cameraToggle">Start Camera</button>
-    </div>
-
-    <img id="cameraFeed" alt="Camera Feed">
-
-    <div id="joint-controls">
-        <h2>Robot Joint Control</h2>
-        <div class="joint-group">
-            <label for="shoulder_yaw">Shoulder Yaw (<span id="shoulder_yaw_value">0.00</span> rad)</label>
-            <input type="range" id="shoulder_yaw" min="-3.14" max="3.14" step="0.01" value="0">
-        </div>
-        <div class="joint-group">
-            <label for="shoulder_pitch">Shoulder Pitch (<span id="shoulder_pitch_value">0.00</span> rad)</label>
-            <input type="range" id="shoulder_pitch" min="0" max="3.14" step="0.01" value="0">
-        </div>
-        <div class="joint-group">
-            <label for="elbow_pitch">Elbow Pitch (<span id="elbow_pitch_value">0.00</span> rad)</label>
-            <input type="range" id="elbow_pitch" min="-3.14" max="0" step="0.01" value="0">
-        </div>
-        <div class="joint-group">
-            <label for="wrist_pitch">Wrist Pitch (<span id="wrist_pitch_value">0.00</span> rad)</label>
-            <input type="range" id="wrist_pitch" min="-1.57" max="1.57" step="0.01" value="0">
-        </div>
-        <div class="joint-group">
-            <label for="wrist_roll">Wrist Roll (<span id="wrist_roll_value">0.00</span> rad)</label>
-            <input type="range" id="wrist_roll" min="-3.14" max="3.14" step="0.01" value="0">
-        </div>
-        <div class="joint-group">
-            <label for="finger_joint">Finger Grasp (<span id="finger_joint_value">0.00</span>)</label>
-            <input type="range" id="finger_joint" min="0" max="0.5" step="0.001" value="0">
-        </div>
-    </div>
-
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Camera Access Login</h2>
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" required>
+    <div class="container">
+        <!-- Custom Modal -->
+        <div id="custom-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3 class="text-xl font-bold mb-4">Message</h3>
+                <p id="modal-message-text" class="mb-4"></p>
+                <button onclick="hideCustomModal()" class="modal-button">OK</button>
             </div>
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" required>
+        </div>
+
+        <h2 class="header">Control Panel</h2>
+        <p id="status" class="status-box">Status: Connecting to server...</p>
+
+        <div class="dropdown-group">
+            <label for="phone-select" class="label">Select Phone Device: </label>
+            <select id="phone-select" class="select-style">
+                <option value="">-- Select a phone --</option>
+                <!-- Options will be populated by JavaScript -->
+            </select>
+        </div>
+
+        <!-- Camera Feed Section -->
+        <div class="camera-feed-container">
+            <h3 class="text-xl font-semibold mb-2">Live Camera Feed from Mobile</h3>
+            <video id="remote-video" class="video-feed-style" autoplay playsinline></video>
+            <p id="no-phone-selected-camera-message" class="no-phone-message hidden">
+                Select a phone to view its live feed.
+            </p>
+            <button id="toggle-camera-button" class="toggle-camera-button">Start Camera Feed (WebRTC)</button>
+        </div>
+
+        <!-- Robot Control Section -->
+        <div class="robot-control-section">
+            <h3 class="text-xl font-semibold mb-2">Robot Gripper Control (Robotiq 85)</h3>
+            <div class="joint-slider-group">
+                <label for="finger_joint" class="joint-label">
+                    Finger Grasp: <span id="finger-joint-value">0.000</span> rad
+                </label>
+                <input
+                    type="range"
+                    id="finger_joint"
+                    name="finger_joint"
+                    min="0"
+                    max="0.725"
+                    step="0.001"
+                    value="0"
+                    class="joint-slider"
+                />
+                <p class="gripper-note">
+                    (This gripper has a single main control joint; other finger joints mimic it automatically.)
+                </p>
             </div>
-            <button id="loginBtn">Login</button>
-            <div id="loginError"></div>
+        </div>
+
+        <!-- Local 3D Robot Visualization (Robotiq 85) -->
+        <div class="urdf-container">
+            <!-- Three.js Canvas will be appended here by JS -->
+            <div id="urdf-viewer-container" style="width: 100%; height: 100%;"></div>
+            <p class="viewer-note">Local 3D Robot Viewer (Robotiq 85)</p>
         </div>
     </div>
 
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three-urdf-loader@0.0.12/dist/URDFLoader.js"></script>
+
+
     <script>
-        // --- Configuration ---
-        const FLASK_APP_URL = 'https://remote-character-control.onrender.com'; // Your deployed Render URL
+        // Configuration
+        const FLASK_APP_URL = "https://remote-character-control.onrender.com"; // Your Flask backend URL
 
-        // --- DOM Elements ---
-        const socket = io(FLASK_APP_URL);
-        const cameraToggle = document.getElementById('cameraToggle');
-        const cameraFeed = document.getElementById('cameraFeed');
-        const loginModal = document.getElementById('loginModal');
-        const closeBtn = document.querySelector('.close');
-        const loginBtn = document.getElementById('loginBtn');
-        const loginError = document.getElementById('loginError');
+        // Global Variables
+        let socket;
+        let peerConnection;
+        const remoteVideoRef = document.getElementById('remote-video');
+        const statusElement = document.getElementById('status');
+        const phoneSelect = document.getElementById('phone-select');
+        const toggleCameraButton = document.getElementById('toggle-camera-button');
+        const noPhoneSelectedCameraMessage = document.getElementById('no-phone-selected-camera-message');
 
-        // --- Joint Sliders and their values display ---
-        const jointSliders = [
-            { id: 'shoulder_yaw', element: document.getElementById('shoulder_yaw'), valueDisplay: document.getElementById('shoulder_yaw_value') },
-            { id: 'shoulder_pitch', element: document.getElementById('shoulder_pitch'), valueDisplay: document.getElementById('shoulder_pitch_value') },
-            { id: 'elbow_pitch', element: document.getElementById('elbow_pitch'), valueDisplay: document.getElementById('elbow_pitch_value') },
-            { id: 'wrist_pitch', element: document.getElementById('wrist_pitch'), valueDisplay: document.getElementById('wrist_pitch_value') },
-            { id: 'wrist_roll', element: document.getElementById('wrist_roll'), valueDisplay: document.getElementById('wrist_roll_value') },
-            { id: 'finger_joint', element: document.getElementById('finger_joint'), valueDisplay: document.getElementById('finger_joint_value') },
-            // Note: finger_joint_2 is controlled by finger_joint in mobile_view.html, so no separate slider needed here.
-        ];
+        let availablePhones = [];
+        let selectedPhoneId = "";
+        let cameraFeedActive = false; // Tracks if WebRTC stream is active
 
+        // Three.js for URDF Visualization
+        let scene, camera, renderer, controls;
+        let robotModel; // The loaded Robotiq 85 URDF model
 
-        // --- Event Listeners ---
-        document.getElementById('leftBtn').addEventListener('click', () => moveCharacter('left'));
-        document.getElementById('rightBtn').addEventListener('click', () => moveCharacter('right'));
-        document.getElementById('jumpBtn').addEventListener('click', () => moveCharacter('jump'));
-        cameraToggle.addEventListener('click', toggleCamera);
-        closeBtn.addEventListener('click', () => loginModal.style.display = 'none');
-        loginBtn.addEventListener('click', attemptLogin);
+        // Joint state for local URDF and sending commands
+        let localJointStates = {
+            finger_joint: 0.0
+        };
 
-        // Add event listeners for joint sliders
-        jointSliders.forEach(joint => {
-            if (joint.element) {
-                joint.element.addEventListener('input', (event) => {
-                    const angle = parseFloat(event.target.value);
-                    if (joint.valueDisplay) {
-                        joint.valueDisplay.textContent = angle.toFixed(2); // Display value with 2 decimal places
-                    }
-                    setJointAngle(joint.id, angle); // Send to server
-                });
-            } else {
-                console.warn(`Joint slider element not found for ID: ${joint.id}`);
-            }
-        });
+        // --- Custom Modal Functions (replaces alert/confirm) ---
+        function showCustomModal(message) {
+            document.getElementById('modal-message-text').textContent = message;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
 
-        window.addEventListener('click', (event) => {
-            if (event.target == loginModal) {
-                loginModal.style.display = 'none';
-            }
-        });
+        function hideCustomModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('modal-message-text').textContent = '';
+        }
 
-        // --- Socket Events (for Control Panel) ---
-        socket.on('character_moved', (position) => {
-            console.log('Control Panel: Character base moved to:', position);
-        });
+        // --- Three.js Initialization for Robotiq 85 URDF ---
+        function initThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf5f5f5); // Light grey background
 
-        socket.on('camera_feed', (data) => {
-            console.log("Control Panel: Received camera frame from mobile.");
-            if (cameraFeed) {
-                cameraFeed.src = `data:image/jpeg;base64,${data.frame}`;
-                if (cameraFeed.style.display === 'none') {
-                    cameraFeed.style.display = 'block';
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (350), 0.001, 10); // Adjusted for gripper
+            camera.position.set(0.1, 0.1, 0.1); // Closer view for small gripper
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(document.querySelector('.urdf-container').offsetWidth, 350); // Match container size
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('urdf-viewer-container').appendChild(renderer.domElement);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(0.5, 0.5, 0.5).normalize();
+            scene.add(directionalLight);
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight2.position.set(-0.5, -0.5, -0.5).normalize();
+            scene.add(directionalLight2);
+
+            // URDF Loader
+            const loader = new THREE.URDFLoader();
+            // Important: Set package path correctly based on your Flask static setup
+            loader.packages = {
+                'robotiq_arg85_description': './robots' // Flask serves URDF and meshes from /robots
+            };
+            loader.workingPath = './robots/'; // Necessary for relative mesh paths in URDF
+
+            loader.load('./robots/robotiq_arg85_description.URDF', result => {
+                robotModel = result;
+                scene.add(robotModel);
+                console.log('Control Panel: Robotiq 85 URDF model loaded:', robotModel);
+
+                // Set initial scale and position for the gripper
+                const scaleFactor = 100; // Gripper is very small in URDF
+                robotModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                robotModel.position.set(0, -0.05 * scaleFactor, 0); // Adjust vertical offset
+
+                // Apply initial joint state if available
+                if (localJointStates.finger_joint !== undefined && robotModel.joints['finger_joint']) {
+                    robotModel.joints['finger_joint'].setJointValue(localJointStates.finger_joint);
+                    document.getElementById('finger-joint-value').textContent = localJointStates.finger_joint.toFixed(3);
+                    document.getElementById('finger_joint').value = localJointStates.finger_joint;
                 }
-            } else {
-                console.warn("Control Panel: cameraFeed element not found.");
-            }
-        });
 
-        // <--- NEW: Handle initial joint states on connect to sync sliders --->
-        socket.on('initial_joint_states', (jointStates) => {
-            console.log('Control Panel: Received initial joint states:', jointStates);
-            jointSliders.forEach(joint => {
-                if (jointStates.hasOwnProperty(joint.id) && joint.element) {
-                    const value = jointStates[joint.id];
-                    joint.element.value = value; // Update slider position
-                    if (joint.valueDisplay) {
-                        joint.valueDisplay.textContent = value.toFixed(2); // Update display
-                    }
-                }
+                // Center the orbit controls target on the robot model
+                const box = new THREE.Box3().setFromObject(robotModel);
+                const center = box.getCenter(new THREE.Vector3());
+                controls.target.copy(center);
+                controls.update();
+
+            },
+            xhr => { console.log(`URDF loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`); },
+            error => {
+                console.error("Control Panel: Error loading URDF:", error);
+                showCustomModal('Failed to load robot gripper model. Check URDF path and mesh files on the server.');
             });
-        });
 
-        socket.on('joint_angle_updated', (data) => {
-            console.log(`Control Panel: Joint '${data.joint_name}' updated to: ${data.angle}`);
-            const joint = jointSliders.find(j => j.id === data.joint_name);
-            if (joint && joint.element) {
-                joint.element.value = data.angle; // Update slider if changed by another client
-                if (joint.valueDisplay) {
-                    joint.valueDisplay.textContent = data.angle.toFixed(2);
-                }
-            }
-        });
+            // Animation loop
+            const animate = () => {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            };
+            animate();
 
-
-        socket.on('connect', () => {
-            console.log('Control Panel: Connected to Flask SocketIO. Socket ID:', socket.id);
-        });
-
-        socket.on('disconnect', (reason) => {
-            console.log('Control Panel: Disconnected from Flask SocketIO. Reason:', reason);
-        });
-
-        socket.on('connect_error', (err) => {
-            console.error('Control Panel: Socket.IO Connection Error:', err.message, err.description);
-        });
-
-
-        // --- Functions ---
-        function moveCharacter(direction) {
-            console.log(`Control Panel: Sending move command: ${direction} to ${FLASK_APP_URL}/move_character`);
-            fetch(`${FLASK_APP_URL}/move_character`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ direction })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Control Panel: Move response from server:', data);
-            })
-            .catch(error => {
-                console.error('Control Panel: Error moving character:', error);
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const container = document.querySelector('.urdf-container');
+                camera.aspect = container.offsetWidth / 350; // Use container width
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.offsetWidth, 350); // Use container width
             });
         }
 
-        // <--- NEW: Function to send joint angle updates to server --->
-        function setJointAngle(jointName, angle) {
-            console.log(`Control Panel: Sending joint update: ${jointName}, angle: ${angle}`);
-            socket.emit('set_joint_angle', { joint_name: jointName, angle: angle });
-        }
 
+        // --- Socket.IO and WebRTC Setup ---
+        function setupSocketAndWebRTC() {
+            socket = io(FLASK_APP_URL);
 
-        function toggleCamera() {
-            if (cameraToggle.classList.contains('active')) {
-                console.log("Control Panel: Sending stop camera command to mobile.");
-                fetch(`${FLASK_APP_URL}/toggle_camera`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'stop' })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Control Panel: Stop camera response:', data);
-                    cameraToggle.textContent = 'Start Camera';
-                    cameraToggle.classList.remove('active');
-                    cameraFeed.style.display = 'none';
-                    cameraFeed.src = '';
-                })
-                .catch(error => {
-                    console.error('Control Panel: Error stopping camera:', error);
-                });
-            } else {
-                console.log("Control Panel: Showing login modal to start camera.");
-                loginModal.style.display = 'flex';
-            }
-        }
+            socket.on("connect", () => {
+                statusElement.textContent = "Connected to server. Registering laptop...";
+                socket.emit("register_laptop");
+                socket.emit("get_available_phones");
+            });
 
-        function attemptLogin() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            console.log("Control Panel: Attempting login for camera access with username:", username);
+            socket.on("connect_error", (err) => {
+                console.error("Socket.IO Connect Error:", err);
+                statusElement.textContent = `Connection Error: ${err.message}`;
+                showCustomModal(`Connection Error: ${err.message}. Please check backend server.`);
+            });
 
-            fetch(`${FLASK_APP_URL}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            })
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(errData => { throw new Error(errData.error || 'Login failed'); });
+            socket.on("available_phones", (phones) => {
+                console.log("Available phones:", phones);
+                availablePhones = phones;
+                updatePhoneDropdown();
+                // Auto-select the first phone if none is selected and phones are available
+                if (!selectedPhoneId && phones.length > 0) {
+                    selectedPhoneId = phones[0];
+                    phoneSelect.value = selectedPhoneId;
+                    toggleCameraFeedVisibility(); // Update UI immediately
+                    statusElement.textContent = `Selected phone: ${selectedPhoneId}. Ready to stream.`;
+                } else if (phones.length === 0) {
+                    selectedPhoneId = "";
+                    phoneSelect.value = "";
+                    remoteVideoRef.srcObject = null; // Clear stream
+                    remoteVideoRef.classList.add('hidden'); // Hide video element
+                    noPhoneSelectedCameraMessage.classList.remove('hidden'); // Show message
+                    toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+                    cameraFeedActive = false;
+                    statusElement.textContent = "No phones online. Waiting for devices...";
                 }
-                return res.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    console.log("Control Panel: Login successful. Sending start camera command.");
-                    loginModal.style.display = 'none';
+            });
 
-                    fetch(`${FLASK_APP_URL}/toggle_camera`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'start',
-                            auth: { username, password }
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(toggleData => {
-                        console.log('Control Panel: Start camera response:', toggleData);
-                        cameraToggle.textContent = 'Stop Camera';
-                        cameraToggle.classList.add('active');
-                    })
-                    .catch(error => {
-                        console.error('Control Panel: Error sending start camera command:', error);
-                        loginError.textContent = error.message || 'Failed to start camera after login.';
+            socket.on("sdp_offer_from_phone", async ({ sdpOffer, phoneDeviceId }) => {
+                if (phoneDeviceId !== selectedPhoneId) {
+                    console.warn(`Received SDP Offer from unselected phone ${phoneDeviceId}. Ignoring.`);
+                    return;
+                }
+                statusElement.textContent = `Received SDP Offer from ${phoneDeviceId}. Setting up WebRTC...`;
+                await setupPeerConnection(phoneDeviceId, sdpOffer);
+            });
+
+            socket.on("ice_candidate_from_phone", async (candidate) => {
+                if (peerConnection && candidate) {
+                    try {
+                        await peerConnection.addIceCandidate(candidate);
+                        console.log("Laptop: Added remote ICE candidate.");
+                    } catch (e) {
+                        console.error("Laptop: Error adding remote ICE candidate:", e);
+                    }
+                }
+            });
+
+            // Listen for initial joint states from backend on connect
+            socket.on('initial_joint_states', (initialStates) => {
+                console.log("Control Panel: Received initial joint states:", initialStates);
+                // Update local model and slider if 'finger_joint' is present
+                if (initialStates.finger_joint !== undefined) {
+                    localJointStates.finger_joint = initialStates.finger_joint;
+                    if (robotModel && robotModel.joints['finger_joint']) {
+                        robotModel.joints['finger_joint'].setJointValue(localJointStates.finger_joint);
+                    }
+                    document.getElementById('finger-joint-value').textContent = localJointStates.finger_joint.toFixed(3);
+                    document.getElementById('finger_joint').value = localJointStates.finger_joint;
+                }
+            });
+
+            // Listen for joint angle updates from other clients (e.g., mobile view)
+            socket.on("joint_angle_updated", (data) => {
+                const { joint_name, angle } = data;
+                console.log(`Control Panel: Joint '${joint_name}' updated to: ${angle}`);
+                if (joint_name === 'finger_joint') {
+                    localJointStates.finger_joint = angle;
+                    if (robotModel && robotModel.joints['finger_joint']) {
+                        robotModel.joints['finger_joint'].setJointValue(angle);
+                    }
+                    document.getElementById('finger-joint-value').textContent = angle.toFixed(3);
+                    document.getElementById('finger_joint').value = angle;
+                }
+            });
+
+            socket.on("disconnect", () => {
+                statusElement.textContent = "Disconnected from server.";
+                console.log("Laptop: Disconnected from server.");
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                remoteVideoRef.srcObject = null;
+                cameraFeedActive = false;
+                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+                toggleCameraFeedVisibility(); // Ensure UI updates
+            });
+        }
+
+        function updatePhoneDropdown() {
+            phoneSelect.innerHTML = '<option value="">-- Select a phone --</option>';
+            if (availablePhones.length === 0) {
+                const option = document.createElement('option');
+                option.value = "";
+                option.disabled = true;
+                option.textContent = "No phones online";
+                phoneSelect.appendChild(option);
+            } else {
+                availablePhones.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = id;
+                    phoneSelect.appendChild(option);
+                });
+            }
+            phoneSelect.value = selectedPhoneId; // Restore selection
+            toggleCameraFeedVisibility(); // Update UI
+        }
+
+        // --- WebRTC Functions ---
+        async function setupPeerConnection(phoneDeviceId, sdpOffer = null) {
+            if (peerConnection) {
+                peerConnection.close();
+            }
+
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+            });
+            peerConnection = pc;
+
+            pc.oniceconnectionstatechange = () => {
+                console.log('Laptop ICE connection state:', pc.iceConnectionState);
+                statusElement.textContent = `ICE State: ${pc.iceConnectionState}`;
+            };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("ice_candidate_from_laptop", {
+                        candidate: event.candidate,
+                        phoneDeviceId: phoneDeviceId
                     });
-                } else {
-                    console.warn("Control Panel: Login failed:", data.error);
-                    loginError.textContent = data.error || 'Login failed. Invalid credentials.';
                 }
-            })
-            .catch(error => {
-                console.error('Control Panel: Error during login attempt:', error);
-                loginError.textContent = error.message || 'An unexpected error occurred during login.';
-            });
+            };
+
+            pc.ontrack = (event) => {
+                if (remoteVideoRef && event.streams && event.streams[0]) {
+                    remoteVideoRef.srcObject = event.streams[0];
+                    remoteVideoRef.play().catch(e => console.error("Video auto-play failed:", e));
+                    statusElement.textContent = "Streaming live!";
+                    cameraFeedActive = true;
+                    toggleCameraButton.textContent = "Stop Camera Feed (WebRTC)";
+                    toggleCameraFeedVisibility();
+                }
+            };
+
+            if (sdpOffer) {
+                await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.emit("sdp_answer_from_laptop", {
+                    sdpAnswer: answer,
+                    phoneDeviceId: phoneDeviceId
+                });
+                statusElement.textContent = "Answer sent. Stream should start...";
+            }
         }
+
+        // --- UI Event Handlers ---
+        phoneSelect.addEventListener('change', (e) => {
+            selectedPhoneId = e.target.value;
+            toggleCameraFeedVisibility(); // Update UI immediately
+            if (selectedPhoneId) {
+                statusElement.textContent = `Requesting stream from ${selectedPhoneId}...`;
+                // If a stream was active, close it before requesting a new one
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                remoteVideoRef.srcObject = null; // Clear previous stream
+                cameraFeedActive = false; // Reset camera feed state
+                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)"; // Reset button text
+
+                // Request stream initialization from the selected phone
+                socket.emit("request_stream", {
+                    phoneDeviceId: selectedPhoneId,
+                    laptopSocketId: socket.id
+                });
+            } else {
+                statusElement.textContent = "Please select a phone to control.";
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                remoteVideoRef.srcObject = null;
+                cameraFeedActive = false;
+                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+            }
+        });
+
+        toggleCameraButton.addEventListener('click', () => {
+            if (!selectedPhoneId) {
+                showCustomModal("Please select a phone to toggle camera feed.");
+                return;
+            }
+
+            if (cameraFeedActive) {
+                // Stop the WebRTC stream by closing the peer connection
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                remoteVideoRef.srcObject = null;
+                cameraFeedActive = false;
+                statusElement.textContent = `WebRTC stream stopped for ${selectedPhoneId}.`;
+                toggleCameraButton.textContent = "Start Camera Feed (WebRTC)";
+                toggleCameraFeedVisibility();
+            } else {
+                // Request a new WebRTC stream
+                statusElement.textContent = `Requesting stream from ${selectedPhoneId}...`;
+                socket.emit("request_stream", {
+                    phoneDeviceId: selectedPhoneId,
+                    laptopSocketId: socket.id
+                });
+            }
+        });
+
+        // Function to update visibility of video element and "no phone" message
+        function toggleCameraFeedVisibility() {
+            if (selectedPhoneId && cameraFeedActive) {
+                remoteVideoRef.classList.remove('hidden');
+                noPhoneSelectedCameraMessage.classList.add('hidden');
+            } else if (selectedPhoneId && !cameraFeedActive) {
+                // If phone is selected but stream is not active (e.g., just selected, or stopped)
+                remoteVideoRef.classList.remove('hidden'); // Keep video element visible, but might be black
+                noPhoneSelectedCameraMessage.classList.add('hidden');
+            }
+             else {
+                remoteVideoRef.classList.add('hidden');
+                noPhoneSelectedCameraMessage.classList.remove('hidden');
+            }
+        }
+
+
+        const fingerJointSlider = document.getElementById('finger_joint');
+        const fingerJointValueDisplay = document.getElementById('finger-joint-value');
+
+        fingerJointSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            localJointStates.finger_joint = value;
+            fingerJointValueDisplay.textContent = value.toFixed(3);
+            if (robotModel && robotModel.joints['finger_joint']) {
+                robotModel.joints['finger_joint'].setJointValue(value);
+            }
+        });
+
+        fingerJointSlider.addEventListener('change', (e) => {
+            const value = parseFloat(e.target.value);
+            if (!selectedPhoneId) {
+                showCustomModal("Please select a phone to control the robot.");
+                // Reset slider value to previous state if no phone is selected
+                e.target.value = localJointStates.finger_joint;
+                fingerJointValueDisplay.textContent = localJointStates.finger_joint.toFixed(3);
+                return;
+            }
+            // Send command only on 'change' (when user releases slider)
+            socket.emit("set_joint_angle", {
+                joint_name: 'finger_joint',
+                angle: value,
+                targetPhoneId: selectedPhoneId // In case Flask needs to filter
+            });
+            console.log(`Sent finger_joint command: ${value} to ${selectedPhoneId}`);
+        });
+
+        // --- Initialization on Window Load ---
+        window.onload = function() {
+            initThreeJS();
+            setupSocketAndWebRTC();
+        };
+
     </script>
 </body>
-</html>    
+</html>
